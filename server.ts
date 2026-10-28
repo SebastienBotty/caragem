@@ -13,6 +13,7 @@ const app = next({ dev, hostname, port });
 await app.prepare();
 const handle = app.getRequestHandler();
 const store = new Store();
+await store.ready;
 const http = createServer(async (req, res) => {
   try {
     if (!(await api(req, res))) await handle(req, res);
@@ -29,8 +30,8 @@ const api = createApi(store, io);
 http.listen(port, hostname, () =>
   console.log(`CaRM prêt sur http://${hostname === '0.0.0.0' ? 'localhost' : hostname}:${port}`),
 );
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   io.close();
   http.close();
-  store.close();
+  await store.close();
 });

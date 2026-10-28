@@ -1,12 +1,12 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { Layers3 } from 'lucide-react';
-import { type GarageState } from '@/lib/domain';
+import type { SessionData } from '@/lib/account';
 import { Auth } from './auth';
 import { GarageProvider, request } from './provider';
 import { Button } from './ui';
 import { AppShell } from './app-shell';
-type SessionData = { state: GarageState | null; userId: string; smtp: boolean };
+import { InvitationGate } from './invitation-gate';
 
 export function Workspace() {
   const [session, setSession] = useState<SessionData | null>(null);
@@ -22,6 +22,11 @@ export function Workspace() {
   }, []);
   useEffect(() => {
     void refresh();
+    const changed = (event: StorageEvent) => {
+      if (event.key === 'carm-session-change') void refresh();
+    };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
   }, [refresh]);
   if (!session)
     return (
@@ -43,13 +48,18 @@ export function Workspace() {
       </div>
     );
   if (!session.state) return <Auth done={refresh} />;
+  const invitation = new URLSearchParams(window.location.search).get('invitation');
+  if (invitation)
+    return <InvitationGate token={invitation} account={session.account} done={refresh} />;
   return (
     <GarageProvider
-      key={`${session.state.id}-${session.userId}`}
+      key={`${session.state.id}-${session.userId}-${session.expires}`}
       initial={{
         state: session.state,
         userId: session.userId,
         smtp: session.smtp,
+        account: session.account,
+        garages: session.garages,
       }}
       onSessionChange={refresh}
     >

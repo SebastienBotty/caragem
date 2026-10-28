@@ -13,9 +13,7 @@ export function Auth({ done }: { done: () => Promise<void> }) {
     typeof window !== 'undefined'
       ? (new URLSearchParams(window.location.search).get('email') ?? '')
       : '';
-  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>(
-    invitation ? 'register' : 'welcome',
-  );
+  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('register');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   return (
@@ -87,14 +85,16 @@ export function Auth({ done }: { done: () => Promise<void> }) {
                 ? 'Heureux de vous revoir.'
                 : invitation
                   ? 'Rejoindre votre équipe.'
-                  : 'Bienvenue dans votre atelier.'}
+                  : 'Créez votre compte et votre garage.'}
           </h2>
           <p>
             {mode === 'welcome'
               ? 'Prenez les commandes d’un garage de démonstration. Aucun compte nécessaire.'
               : mode === 'login'
                 ? 'Retrouvez votre garage et votre équipe.'
-                : 'Créez votre compte et configurez votre espace.'}
+                : invitation
+                  ? 'Rejoignez le garage avec votre adresse invitée, ou connectez-vous à votre compte existant.'
+                  : 'Un compte personnel pour créer vos garages et rejoindre votre équipe.'}
           </p>
           {mode === 'welcome' ? (
             <>
@@ -138,7 +138,7 @@ export function Auth({ done }: { done: () => Promise<void> }) {
                   ? 'Se connecter'
                   : invitation
                     ? 'Rejoindre le garage'
-                    : 'Créer mon garage'
+                    : 'Créer mon compte et mon garage'
               }
               onSubmit={async (f) => {
                 await request(mode, {
@@ -171,6 +171,7 @@ export function Auth({ done }: { done: () => Promise<void> }) {
                   required
                   autoComplete="email"
                   defaultValue={email}
+                  readOnly={Boolean(invitation && email)}
                   placeholder="vous@votre-garage.fr"
                 />
               </Field>
@@ -195,7 +196,7 @@ export function Auth({ done }: { done: () => Promise<void> }) {
                 {mode === 'login' ? 'Créer un compte' : 'J’ai déjà un compte'}
               </button>
               <button type="button" className="text-button" onClick={() => setMode('welcome')}>
-                Retour à la démonstration
+                Essayer la démonstration sans compte
               </button>
             </Form>
           )}

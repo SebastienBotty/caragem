@@ -11,9 +11,11 @@
     "build": "next build",
     "start": "node --disable-warning=ExperimentalWarning server.ts --production",
     "typecheck": "tsc --noEmit",
+    "db:migrate": "node --disable-warning=ExperimentalWarning scripts/migrate.ts",
+    "db:import:sqlite": "node --disable-warning=ExperimentalWarning scripts/import-sqlite.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --disable-warning=ExperimentalWarning --test tests/*.test.ts"
+    "test": "node --env-file-if-exists=.env.test --disable-warning=ExperimentalWarning --test tests/*.test.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.0",
@@ -22,6 +24,7 @@
     "next": "^16.4.3",
     "nodemailer": "^10.2.1",
     "pdf-lib": "^1.17.1",
+    "pg": "^8.23.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "socket.io": "^4.8.1",

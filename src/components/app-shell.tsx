@@ -36,6 +36,7 @@ import {
   VehiclesScreen,
 } from './management';
 import { Dashboard } from './dashboard';
+import { GarageSwitcher } from './garage-switcher';
 const navigation = [
   { id: 'garage', title: 'Mon garage', icon: LayoutDashboard },
   { id: 'tasks', title: 'Mon travail', icon: ListChecks },
@@ -57,6 +58,7 @@ export function AppShell() {
   const [configure, setConfigure] = useState(!state.settings.configured && user.role === 'owner');
   const [menu, setMenu] = useState(false);
   const [profile, setProfile] = useState(false);
+  const [switchGarage, setSwitchGarage] = useState(false);
   const draftCount = state.mails.filter(
     (m) => m.status === 'draft' || m.status === 'failed',
   ).length;
@@ -97,7 +99,13 @@ export function AppShell() {
         </a>
         <button
           className="garage-switch"
-          onClick={() => (user.role === 'owner' ? setConfigure(true) : navigate('settings'))}
+          onClick={() =>
+            state.demo
+              ? user.role === 'owner'
+                ? setConfigure(true)
+                : navigate('settings')
+              : setSwitchGarage(true)
+          }
         >
           <span className="garage-avatar">G</span>
           <span>
@@ -312,6 +320,7 @@ export function AppShell() {
           </footer>
         </main>
       </div>
+      {switchGarage && <GarageSwitcher close={() => setSwitchGarage(false)} />}
       {selected && <VehicleDrawer key={selected} id={selected} close={() => setSelected(null)} />}
       {create && <VehicleForm close={() => setCreate(false)} />}
       {configure && <Configure close={() => setConfigure(false)} />}

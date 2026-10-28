@@ -4221,3 +4221,67 @@ th {
     scroll-behavior: auto !important;
   }
 }
+
+.account-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #f4f6fa;
+  padding: 24px;
+}
+.account-gate > section {
+  width: min(560px, 100%);
+  padding: 32px;
+  display: grid;
+  gap: 18px;
+}
+.account-gate h1 {
+  font-size: 26px;
+}
+.account-gate p {
+  line-height: 1.6;
+  font-size: 13px;
+}
+.garage-access-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.garage-access-list > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  text-align: left;
+  border: 1px solid #dce3ee;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+.garage-access-list > button:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+.garage-access-list span {
+  display: grid;
+  gap: 5px;
+}
+.garage-access-list small,
+.pending-invitation small {
+  font-size: 11px;
+  color: #778399;
+}
+.pending-invitation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px 0;
+  border-top: 1px solid #e8edf4;
+}
+.pending-invitation > span {
+  display: grid;
+  gap: 5px;
+  overflow-wrap: anywhere;
+}
