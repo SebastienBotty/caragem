@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Action, GarageState, User } from './domain.ts';
+import { customerVehicles } from './customer-vehicles.ts';
 
 export const permissions = [
   {
@@ -271,9 +272,10 @@ export function actionPermissions(action: Action): Permission[] {
 export function visibleState(current: GarageState, userId: string): GarageState {
   const user = current.users.find((u) => u.id === userId);
   if (!user) throw new Error('Session invalide.');
-  if (user.role === 'owner') return current;
+  if (user.role === 'owner') return { ...current, savedVehicles: customerVehicles(current) };
   const state = structuredClone(current);
   const allowed = (p: Permission) => can(current, user, p);
+  state.savedVehicles = allowed('garage.view') ? customerVehicles(current) : [];
   // ASVS 8.2.3: HTTP and socket payloads share the same field-level filtering.
   if (!allowed('garage.view')) state.vehicles = [];
   else if (!allowed('history.view'))

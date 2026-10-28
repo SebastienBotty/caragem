@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { customerVehicles, plateKey, type CustomerVehicle } from './customer-vehicles.ts';
 import {
   actionPermissions,
   can,
@@ -153,6 +154,7 @@ export type GarageState = {
   users: User[];
   customers: Customer[];
   vehicles: Vehicle[];
+  savedVehicles?: CustomerVehicle[];
   parts: Part[];
   reservations: Reservation[];
   orders: Purchase[];
@@ -190,6 +192,7 @@ export const actionSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('vehicle'),
     customerId: id,
+    existingVehicleId: id.optional(),
     model: text,
     plate: text,
     issue: text,
@@ -382,15 +385,24 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'vehicle': {
       requireItem(s.customers, a.customerId);
-      const plate = a.plate.toUpperCase();
-      if (s.vehicles.some((v) => v.plate === plate && v.stage !== 'returned'))
+      const existing = a.existingVehicleId
+        ? requireItem(s.vehicles, a.existingVehicleId)
+        : undefined;
+      if (existing && existing.customerId !== a.customerId)
+        throw new Error('Ce véhicule n’appartient pas au client sélectionné.');
+      const plate = (existing?.plate ?? a.plate).trim().toUpperCase();
+      if (s.vehicles.some((v) => plateKey(v.plate) === plateKey(plate) && v.stage !== 'returned'))
         throw new Error('Ce véhicule est déjà présent dans le garage.');
       const visit =
-        Math.max(0, ...s.vehicles.filter((v) => v.plate === plate).map((v) => v.visit)) + 1;
+        Math.max(
+          0,
+          ...s.vehicles.filter((v) => plateKey(v.plate) === plateKey(plate)).map((v) => v.visit),
+        ) + 1;
       s.vehicles.push({
         ...a,
         id: uid(),
         plate,
+        model: existing?.model ?? a.model,
         stage: 'reception',
         blocker: '',
         tasks: [
@@ -680,10 +692,18 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     case 'revisit': {
       const old = vehicle(a.id);
       if (old.stage !== 'returned') throw new Error('Ce véhicule a déjà une visite en cours.');
-      if (s.vehicles.some((v) => v.plate === old.plate && v.stage !== 'returned'))
+      if (
+        s.vehicles.some((v) => plateKey(v.plate) === plateKey(old.plate) && v.stage !== 'returned')
+      )
         throw new Error('Une visite est déjà en cours.');
+      const saved = customerVehicles(s, old.customerId).find(
+        (v) => plateKey(v.plate) === plateKey(old.plate),
+      )!;
       s.vehicles.push({
         ...structuredClone(old),
+        model: saved.model,
+        color: saved.color,
+        mileage: saved.mileage,
         id: uid(),
         stage: 'reception',
         issue: a.issue,
@@ -701,7 +721,12 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
         ],
         notes: [],
         createdAt: now,
-        visit: Math.max(...s.vehicles.filter((v) => v.plate === old.plate).map((v) => v.visit)) + 1,
+        visit:
+          Math.max(
+            ...s.vehicles
+              .filter((v) => plateKey(v.plate) === plateKey(old.plate))
+              .map((v) => v.visit),
+          ) + 1,
       });
       message = `Nouvelle visite de ${old.plate}`;
       break;

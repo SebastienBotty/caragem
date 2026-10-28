@@ -2,18 +2,25 @@
 import { useGarage } from '../provider';
 import { Field, Form, Modal, value } from '../ui';
 
-export function CustomerForm({ close }: { close: () => void }) {
+export function CustomerForm({
+  close,
+  onCreated,
+}: {
+  close: () => void;
+  onCreated?: (id: string) => void;
+}) {
   const { act } = useGarage();
   return (
     <Modal title="Nouveau client" subtitle="Le début d’une relation qui roule." close={close}>
       <Form
         onSubmit={async (f) => {
-          await act({
+          const state = await act({
             type: 'customer',
             name: value(f, 'name'),
             email: value(f, 'email'),
             phone: value(f, 'phone'),
           });
+          onCreated?.(state.customers.at(-1)!.id);
           close();
         }}
       >

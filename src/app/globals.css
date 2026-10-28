@@ -2484,7 +2484,7 @@ th {
 .customer-vehicles {
   padding-top: 10px;
 }
-.customer-vehicles > button {
+.customer-registered-vehicle > summary {
   width: 100%;
   display: flex;
   align-items: center;
@@ -2493,9 +2493,36 @@ th {
   border-bottom: 1px solid var(--line);
   text-align: left;
   color: #91a2bf;
+  cursor: pointer;
 }
-.customer-vehicles > button > span:nth-child(2) {
+.customer-registered-vehicle > summary > span:nth-child(2) {
   flex: 1;
+}
+.customer-registered-vehicle > summary::after {
+  content: '+';
+}
+.customer-registered-vehicle[open] > summary::after {
+  content: '−';
+}
+.customer-visit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.customer-visit > span:first-child {
+  flex: 1;
+}
+.customer-registered-vehicle > .button {
+  margin: 10px 0;
+}
+.arrival-vehicle-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
 }
 .customer-vehicles b {
   display: block;

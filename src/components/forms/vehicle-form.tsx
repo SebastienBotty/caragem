@@ -4,9 +4,23 @@ import { Plus } from 'lucide-react';
 import { useGarage } from '../provider';
 import { Field, Form, Modal, localDateInput, number, value } from '../ui';
 import { CustomerForm } from './customer-form';
-export function VehicleForm({ close }: { close: () => void }) {
+import { customerVehicles } from '@/lib/customer-vehicles';
+export function VehicleForm({
+  close,
+  initialCustomerId = '',
+  initialVehicleId = '',
+}: {
+  close: () => void;
+  initialCustomerId?: string;
+  initialVehicleId?: string;
+}) {
   const { state, act, can } = useGarage();
   const [customer, setCustomer] = useState(false);
+  const [customerId, setCustomerId] = useState(initialCustomerId);
+  const [vehicleId, setVehicleId] = useState(initialVehicleId);
+  const vehicles = customerVehicles(state, customerId).filter((v) => v.customerId === customerId);
+  const selected = vehicles.find((v) => v.id === vehicleId);
+  const enteringVehicle = customerId && (selected || vehicleId === 'new' || !vehicles.length);
   return (
     <>
       <Modal
@@ -20,6 +34,7 @@ export function VehicleForm({ close }: { close: () => void }) {
             await act({
               type: 'vehicle',
               customerId: value(f, 'customerId'),
+              existingVehicleId: selected?.id,
               model: value(f, 'model'),
               plate: value(f, 'plate'),
               mileage: number(f, 'mileage'),
@@ -32,7 +47,15 @@ export function VehicleForm({ close }: { close: () => void }) {
           }}
         >
           <Field label="Client">
-            <select name="customerId" required defaultValue="">
+            <select
+              name="customerId"
+              required
+              value={customerId}
+              onChange={(e) => {
+                setCustomerId(e.target.value);
+                setVehicleId('');
+              }}
+            >
               <option value="" disabled>
                 Sélectionner un client
               </option>
@@ -48,28 +71,76 @@ export function VehicleForm({ close }: { close: () => void }) {
               <Plus size={14} /> Créer un client
             </button>
           )}
-          <div className="form-grid">
-            <Field label="Immatriculation">
-              <input
-                name="plate"
-                required
-                maxLength={25}
-                placeholder="GH-284-LP"
-                className="plate-input"
-              />
+          {customerId && vehicles.length > 0 && (
+            <Field label="Véhicule du client">
+              <select required value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
+                <option value="" disabled>
+                  Sélectionner un véhicule
+                </option>
+                {vehicles.map((v) => (
+                  <option key={v.id} value={v.id} disabled={v.inGarage}>
+                    {v.plate} · {v.model}
+                    {v.inGarage ? ' — Déjà au garage' : ''}
+                  </option>
+                ))}
+                <option value="new">+ Ajouter un nouveau véhicule à ce client</option>
+              </select>
             </Field>
-            <Field label="Marque et modèle">
-              <input name="model" required maxLength={100} placeholder="Peugeot 308" />
-            </Field>
-          </div>
-          <div className="form-grid">
-            <Field label="Kilométrage">
-              <input name="mileage" type="number" required min={0} max={5000000} defaultValue={0} />
-            </Field>
-            <Field label="Couleur">
-              <input type="color" name="color" defaultValue="#7b9ab6" />
-            </Field>
-          </div>
+          )}
+          {customerId && !vehicles.length && (
+            <p className="muted">
+              Ce client n’a pas encore de véhicule enregistré. Le véhicule ajouté sera lié à sa
+              fiche.
+            </p>
+          )}
+          {enteringVehicle && (
+            <div className="arrival-vehicle-fields" key={`${customerId}:${selected?.id ?? 'new'}`}>
+              <div className="form-grid">
+                <Field label="Immatriculation">
+                  <input
+                    name="plate"
+                    required
+                    maxLength={25}
+                    placeholder="GH-284-LP"
+                    className="plate-input"
+                    defaultValue={selected?.plate ?? ''}
+                    readOnly={Boolean(selected)}
+                  />
+                </Field>
+                <Field label="Marque et modèle">
+                  <input
+                    name="model"
+                    required
+                    maxLength={200}
+                    placeholder="Peugeot 308"
+                    defaultValue={selected?.model ?? ''}
+                    readOnly={Boolean(selected)}
+                  />
+                </Field>
+              </div>
+              <div className="form-grid">
+                <Field label="Kilométrage">
+                  <input
+                    name="mileage"
+                    type="number"
+                    required
+                    min={0}
+                    max={5000000}
+                    defaultValue={selected?.mileage ?? 0}
+                  />
+                </Field>
+                <Field label="Couleur">
+                  <input type="color" name="color" defaultValue={selected?.color ?? '#7b9ab6'} />
+                </Field>
+              </div>
+              {selected && (
+                <p className="muted small-text">
+                  Véhicule enregistré. Vérifiez le kilométrage et la couleur pour cette nouvelle
+                  visite.
+                </p>
+              )}
+            </div>
+          )}
           <Field label="Motif de la visite">
             <input
               name="issue"
@@ -91,7 +162,15 @@ export function VehicleForm({ close }: { close: () => void }) {
           </label>
         </Form>
       </Modal>
-      {customer && can('customers.manage') && <CustomerForm close={() => setCustomer(false)} />}
+      {customer && can('customers.manage') && (
+        <CustomerForm
+          close={() => setCustomer(false)}
+          onCreated={(id) => {
+            setCustomerId(id);
+            setVehicleId('');
+          }}
+        />
+      )}
     </>
   );
 }
