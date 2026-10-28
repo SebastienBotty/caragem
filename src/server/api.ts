@@ -7,6 +7,7 @@ import { accountApi } from './account-api.ts';
 import { validOrigin } from './http.ts';
 export { validOrigin, appOrigin, cookie } from './http.ts';
 import { actionSchema, log } from '../lib/domain.ts';
+import { createGoogleApi, googleConfiguration } from './google-auth.ts';
 import { broadcastGarage } from './realtime.ts';
 
 async function body(req: IncomingMessage) {
@@ -23,7 +24,8 @@ async function body(req: IncomingMessage) {
     throw new Error('Requête JSON invalide.');
   }
 }
-export function createApi(store: Store, io: Server) {
+export function createApi(store: Store, io: Server, googleConfig = googleConfiguration) {
+  const google = createGoogleApi(store, io, googleConfig);
   const broadcast = async (garageId: string) => broadcastGarage(io, await store.get(garageId));
   return async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
     const path = req.url?.split('?')[0] ?? '';
@@ -43,6 +45,7 @@ export function createApi(store: Store, io: Server) {
       // Read the complete request before taking any mutable garage snapshot.
       const inputBody = req.method === 'POST' ? await body(req) : undefined;
       const session = await store.session(req.headers.cookie, req.headers['x-carm-demo-user']);
+      if (await google(req, res, path, inputBody, session, send)) return true;
       if (await accountApi(store, io, req, res, path, inputBody, session, send)) return true;
       if (!session) {
         send(401, { error: 'Connectez-vous pour continuer.' });

@@ -33,6 +33,14 @@ export type Session = {
   tokenHash: string;
 };
 type Account = { email: string; hash: string | null; name: string; googleLinked: boolean };
+export type GoogleProfile = { sub: string; email: string; name: string; emailVerified: boolean };
+export type GoogleAuthRequest = {
+  verifier: string;
+  nonce: string;
+  invitation?: string;
+  linkSessionHash?: string;
+  previousSessionHash?: string;
+};
 type Membership = { garage_id: string; user_id: string; role: User['role'] };
 type Invitation = {
   id: string;
@@ -106,7 +114,7 @@ export class Store {
     await this.ready;
     return (
       await this.rows<Account>(
-        'SELECT email,hash,name,FALSE AS "googleLinked" FROM accounts WHERE email=$1',
+        'SELECT email,hash,name,EXISTS(SELECT 1 FROM google_identities g WHERE g.email=accounts.email) AS "googleLinked" FROM accounts WHERE email=$1',
         [email.toLowerCase()],
         sql,
       )
@@ -158,6 +166,92 @@ export class Store {
   async createGarage(session: Session, name: string) {
     if (!session.email) throw new Error('Créez un compte personnel pour créer un garage.');
     return this.atomic((sql) => this.createOwned(sql, session.email!, name));
+  }
+  async saveGoogleRequest(state: string, browser: string, payload: GoogleAuthRequest) {
+    await this.ready;
+    await this.db.query('DELETE FROM google_auth_requests WHERE expires<$1', [Date.now()]);
+    await this.db.query(
+      'INSERT INTO google_auth_requests(state_hash,browser_hash,payload,expires) VALUES($1,$2,$3::jsonb,$4)',
+      [digest(state), digest(browser), JSON.stringify(payload), Date.now() + 10 * 60000],
+    );
+  }
+  async consumeGoogleRequest(
+    state: string,
+    browser: string,
+  ): Promise<GoogleAuthRequest | undefined> {
+    await this.ready;
+    const [row] = await this.rows<{ payload: GoogleAuthRequest }>(
+      'DELETE FROM google_auth_requests WHERE state_hash=$1 AND browser_hash=$2 AND expires>$3 RETURNING payload',
+      [digest(state), digest(browser), Date.now()],
+    );
+    return row?.payload;
+  }
+  async googleAccount(profile: GoogleProfile, request: GoogleAuthRequest) {
+    if (!profile.emailVerified) throw new Error('google_unverified_email');
+    return this.atomic(async (sql) => {
+      // Serialize this provider identity; email alone never associates an existing account.
+      await sql.query("SELECT pg_advisory_xact_lock(hashtextextended('google:' || $1,0))", [
+        profile.sub,
+      ]);
+      const [identity] = await this.rows<{ email: string }>(
+        'SELECT email FROM google_identities WHERE subject=$1',
+        [profile.sub],
+        sql,
+      );
+      let email = identity?.email;
+      let linkedTarget: { garageId: string; userId: string } | undefined;
+      if (request.linkSessionHash) {
+        const [session] = await this.rows<{
+          account_email: string;
+          garage_id: string;
+          user_id: string;
+        }>(
+          'SELECT account_email,garage_id,user_id FROM sessions WHERE token_hash=$1 AND expires>$2',
+          [request.linkSessionHash, Date.now()],
+          sql,
+        );
+        if (
+          !session?.account_email ||
+          session.account_email !== profile.email ||
+          (email && email !== session.account_email)
+        )
+          throw new Error('google_link_failed');
+        const [other] = await this.rows<{ subject: string }>(
+          'SELECT subject FROM google_identities WHERE email=$1',
+          [session.account_email],
+          sql,
+        );
+        if (other && other.subject !== profile.sub) throw new Error('google_link_failed');
+        if (!identity)
+          await sql.query('INSERT INTO google_identities(subject,email) VALUES($1,$2)', [
+            profile.sub,
+            session.account_email,
+          ]);
+        email = session.account_email;
+        linkedTarget = { garageId: session.garage_id, userId: session.user_id };
+      } else if (!identity) {
+        if (await this.account(profile.email, sql)) throw new Error('google_link_required');
+        await sql.query('INSERT INTO accounts(email,hash,name) VALUES($1,NULL,$2)', [
+          profile.email,
+          profile.name,
+        ]);
+        await sql.query('INSERT INTO google_identities(subject,email) VALUES($1,$2)', [
+          profile.sub,
+          profile.email,
+        ]);
+        email = profile.email;
+      }
+      if (!email) throw new Error('google_signin_failed');
+      if (request.invitation) return this.join(sql, email, request.invitation);
+      if (linkedTarget) return linkedTarget;
+      const [membership] = await this.rows<Membership>(
+        'SELECT m.* FROM memberships m JOIN garages g ON g.id=m.garage_id WHERE email=$1 ORDER BY g.created_at,g.id LIMIT 1',
+        [email],
+        sql,
+      );
+      if (membership) return { garageId: membership.garage_id, userId: membership.user_id };
+      return this.createOwned(sql, email, 'Mon garage');
+    });
   }
   private async join(sql: Sql, email: string, token: string) {
     const [invite] = await this.rows<Invitation>(

@@ -5,10 +5,12 @@ import { stages } from '@/lib/domain';
 import { useGarage, request } from '../provider';
 import { Badge, Button, Field, Form, value } from '../ui';
 import { Configure } from '../forms';
+import { GoogleSignIn } from '../google-sign-in';
 
 export function SettingsScreen() {
-  const { state, user, refresh, notify } = useGarage();
+  const { state, user, account, refresh, notify } = useGarage();
   const [config, setConfig] = useState(false);
+  const [googlePassword, setGooglePassword] = useState('');
   return (
     <>
       <div className="section-toolbar">
@@ -55,6 +57,11 @@ export function SettingsScreen() {
                 Quitter la démonstration
               </Button>
             </>
+          ) : !account?.hasPassword ? (
+            <p>
+              Vous vous connectez avec votre compte Google. Aucun mot de passe CaRM n’est
+              enregistré.
+            </p>
           ) : (
             <Form
               label="Changer le mot de passe"
@@ -82,9 +89,33 @@ export function SettingsScreen() {
               </Field>
             </Form>
           )}
+          {!state.demo && (
+            <div className="google-account-settings">
+              <h3>Connexion Google</h3>
+              {account?.googleLinked ? (
+                <Badge tone="green">Google associé à votre compte</Badge>
+              ) : (
+                <>
+                  <p>
+                    Associez le compte Google correspondant à {account?.email} pour retrouver les
+                    mêmes garages.
+                  </p>
+                  <Field label="Confirmer votre mot de passe CaRM">
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={googlePassword}
+                      onChange={(e) => setGooglePassword(e.target.value)}
+                    />
+                  </Field>
+                  <GoogleSignIn link password={googlePassword} />
+                </>
+              )}
+            </div>
+          )}
         </section>
       </div>
-      {config && <Configure close={() => setConfig(false)} />}
+      {config && user.role === 'owner' && <Configure close={() => setConfig(false)} />}
     </>
   );
 }

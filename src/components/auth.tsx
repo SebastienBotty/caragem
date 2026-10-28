@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { ArrowUpRight, Box, Check, Layers3, Radio, Wrench } from 'lucide-react';
 import { Button, Field, Form, value } from './ui';
 import { request } from './provider';
+import { GoogleSignIn } from './google-sign-in';
 
-export function Auth({ done }: { done: () => Promise<void> }) {
+export function Auth({ done, notice = '' }: { done: () => Promise<void>; notice?: string }) {
   const invitation =
     typeof window !== 'undefined'
       ? (new URLSearchParams(window.location.search).get('invitation') ?? '')
@@ -15,7 +16,7 @@ export function Auth({ done }: { done: () => Promise<void> }) {
       : '';
   const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('register');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(notice);
   return (
     <main className="auth-page">
       <div className="auth-story">
@@ -96,6 +97,17 @@ export function Auth({ done }: { done: () => Promise<void> }) {
                   ? 'Rejoignez le garage avec votre adresse invitée, ou connectez-vous à votre compte existant.'
                   : 'Un compte personnel pour créer vos garages et rejoindre votre équipe.'}
           </p>
+          {mode !== 'welcome' && (
+            <>
+              <GoogleSignIn invitation={invitation || undefined} />
+              {invitation && <p className="muted">Utilisez le compte Google associé à {email}.</p>}
+              <div className="auth-or">
+                <span />
+                ou avec votre adresse mail
+                <span />
+              </div>
+            </>
+          )}
           {mode === 'welcome' ? (
             <>
               <Button

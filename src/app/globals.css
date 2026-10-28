@@ -4285,3 +4285,43 @@ th {
   gap: 5px;
   overflow-wrap: anywhere;
 }
+
+.google-sign-in {
+  display: grid;
+  gap: 10px;
+}
+.google-button.button {
+  width: 100%;
+  justify-content: center;
+  background: #fff;
+  color: #28364a;
+  border: 1px solid #ccd5e1;
+  font-size: 13px;
+  min-height: 46px;
+}
+.google-button.button:hover:not(:disabled) {
+  background: #f6f8fb;
+  border-color: #8091aa;
+}
+.google-button.button:focus-visible {
+  outline: 3px solid #aac0fa;
+  outline-offset: 2px;
+}
+.google-sign-in > p {
+  font-size: 11px;
+  margin: 0;
+  line-height: 1.6;
+}
+.google-account-settings {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid #e1e6ee;
+  display: grid;
+  gap: 14px;
+}
+.google-account-settings h3 {
+  margin: 0;
+}
+.auth-or {
+  font-size: 11px;
+}

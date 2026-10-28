@@ -23,6 +23,7 @@
     "lucide-react": "^0.468.0",
     "next": "^16.4.3",
     "nodemailer": "^10.2.1",
+    "openid-client": "^6.8.8",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.1",
     "react": "^19.2.0",
