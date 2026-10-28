@@ -96,3 +96,36 @@ export function onboardingSteps(state: GarageState, user: User) {
   ];
   return steps.filter((step) => !step.permission || can(state, user, step.permission));
 }
+
+export function onboardingRoute(state: GarageState, user: User, initialPage: string) {
+  const labels: Record<string, string> = {
+    garage: 'Mon garage',
+    customers: 'Clients',
+    tasks: 'Mon travail',
+    planning: 'Planning',
+    inventory: 'Pièces & stock',
+    estimates: 'Devis',
+    messages: 'Messages',
+    team: 'Équipe',
+    settings: 'Paramètres',
+  };
+  let previousPage = initialPage;
+  return onboardingSteps(state, user).flatMap((step) => {
+    const content = { ...step, navigation: '' };
+    const changesPage = step.page !== previousPage;
+    previousPage = step.page;
+    if (!changesPage) return [content];
+    const label = labels[step.page];
+    return [
+      {
+        ...step,
+        id: `${step.id}-navigation`,
+        navigation: label,
+        target: `[data-tour-nav="${step.page}"]`,
+        title: `Ouvrir ${label}`,
+        text: `Dans le menu, cliquez sur « ${label} ». Le bouton mis en évidence permet d’accéder à cette rubrique.`,
+      },
+      content,
+    ];
+  });
+}

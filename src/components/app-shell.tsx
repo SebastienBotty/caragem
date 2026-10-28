@@ -139,6 +139,7 @@ export function AppShell() {
               <div key={n.id}>
                 {i === 5 && <div className="nav-divider" />}
                 <button
+                  data-tour-nav={n.id}
                   className={`nav-item ${page === n.id ? 'active' : ''}`}
                   onClick={() => navigate(n.id)}
                 >
@@ -164,6 +165,7 @@ export function AppShell() {
           </button>
           {can('mail.send') && (
             <button
+              data-tour-nav="messages"
               className={`nav-item ${page === 'messages' ? 'active' : ''}`}
               onClick={() => navigate('messages')}
             >
@@ -173,6 +175,7 @@ export function AppShell() {
             </button>
           )}
           <button
+            data-tour-nav="settings"
             className={`nav-item ${page === 'settings' ? 'active' : ''}`}
             onClick={() => navigate('settings')}
           >
@@ -369,6 +372,8 @@ export function AppShell() {
         launch={tourLaunch}
         page={page}
         navigate={navigate}
+        menuOpen={menu}
+        showMenu={setMenu}
       />
     </div>
   );

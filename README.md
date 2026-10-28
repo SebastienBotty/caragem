@@ -20,6 +20,8 @@ Dans **Équipe**, le responsable crée un lien d’invitation personnel à trans
 
 Au premier accès à son garage, l’utilisateur reçoit une visite guidée des rubriques auxquelles ses permissions donnent accès. La configuration initiale du garage passe en premier. Les étapes mettent en évidence l’interface et changent de rubrique sans modifier les données métier. Les boutons Précédent/Suivant permettent de parcourir le guide ; Plus tard, Passer la visite, la croix et Échap permettent de le fermer.
 
+Avant chaque changement d’écran, le guide met d’abord en évidence le bouton du menu qui permet d’y accéder. L’utilisateur clique sur ce bouton ou confirme son ouverture depuis la carte du guide, puis découvre le contenu de la rubrique. Sur mobile, le menu s’ouvre automatiquement pour montrer ce chemin.
+
 Le guide peut être relancé depuis **Visite guidée** dans la barre latérale, y compris depuis le menu sur mobile. Sa fermeture est mémorisée en PostgreSQL sur le compte personnel, pour tous ses garages et appareils ; en démonstration, elle est mémorisée par profil. Si l’enregistrement échoue, le guide se ferme et un message prévient qu’il pourra réapparaître à la prochaine connexion.
 
 ### Clients et véhicules

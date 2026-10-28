@@ -1524,6 +1524,13 @@ th {
   box-shadow: 0 0 0 9999px #1b2c4a99;
   pointer-events: none;
 }
+.tour-nav-hit {
+  position: fixed;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 12px;
+}
 .tour-card {
   position: absolute;
   z-index: 1;

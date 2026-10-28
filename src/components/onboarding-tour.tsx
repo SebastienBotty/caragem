@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Compass, X } from 'lucide-react';
-import { onboardingSteps } from '@/lib/onboarding';
+import { onboardingRoute } from '@/lib/onboarding';
 import { request, useGarage } from './provider';
 import { Button } from './ui';
 
@@ -10,11 +10,15 @@ export function OnboardingTour({
   launch,
   page,
   navigate,
+  menuOpen,
+  showMenu,
 }: {
   enabled: boolean;
   launch: number;
   page: string;
   navigate: (page: string) => void;
+  menuOpen: boolean;
+  showMenu: (open: boolean) => void;
 }) {
   const { state, user, onboardingSeen, notify } = useGarage();
   const [seen, setSeen] = useState(onboardingSeen);
@@ -29,7 +33,7 @@ export function OnboardingTour({
   const handledLaunch = useRef(launch);
   const originPage = useRef(page);
   const titleId = useId();
-  const steps = onboardingSteps(state, user);
+  const steps = onboardingRoute(state, user, originPage.current);
   const index = step === null ? -1 : Math.min(step, steps.length - 1);
   const current = index >= 0 ? steps[index] : undefined;
   const open = step !== null;
@@ -49,11 +53,17 @@ export function OnboardingTour({
     return () => element?.close();
   }, [open]);
   useEffect(() => {
-    if (current) navigate(current.page);
-  }, [current?.id, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (current?.navigation) showMenu(true);
+    else if (current) navigate(current.page);
+  }, [current?.id, navigate, showMenu]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setSpotlight(null);
-    if (!current || current.page !== page) return;
+    if (
+      !current ||
+      (!current.navigation && current.page !== page) ||
+      (current.navigation && !menuOpen)
+    )
+      return;
     const target =
       document.querySelector<HTMLElement>(current.target) ??
       document.querySelector<HTMLElement>('[data-tour="content"]');
@@ -80,13 +90,15 @@ export function OnboardingTour({
     observer.observe(target);
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
+    window.addEventListener('transitionend', measure, true);
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
+      window.removeEventListener('transitionend', measure, true);
     };
-  }, [current?.id, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current?.id, page, menuOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function dismiss() {
     setSeen(true);
@@ -100,6 +112,10 @@ export function OnboardingTour({
         'Visite fermée. Votre préférence n’a pas pu être enregistrée ; elle pourra réapparaître à la prochaine connexion.',
       );
     }
+  }
+  function advance() {
+    if (current?.navigation) navigate(current.page);
+    setStep(index + 1);
   }
   if (!open) return null;
   return (
@@ -131,7 +147,22 @@ export function OnboardingTour({
       ) : (
         <div className="tour-shade" />
       )}
-      <section className={`tour-card ${current ? '' : 'tour-welcome'}`}>
+      {current?.navigation && spotlight && (
+        <button
+          className="tour-nav-hit"
+          style={spotlight}
+          aria-label={`Cliquer sur ${current.navigation} dans le menu`}
+          onClick={advance}
+        />
+      )}
+      <section
+        className={`tour-card ${current ? '' : 'tour-welcome'}`}
+        style={
+          current?.navigation && spotlight && spotlight.top > window.innerHeight / 2
+            ? { top: 16, bottom: 'auto' }
+            : undefined
+        }
+      >
         <div className="tour-heading">
           <span className="tour-icon">
             <Compass size={24} />
@@ -170,9 +201,15 @@ export function OnboardingTour({
           )}
           <Button
             className="primary"
-            onClick={() => (index === steps.length - 1 ? void dismiss() : setStep(index + 1))}
+            onClick={() => (index === steps.length - 1 ? void dismiss() : advance())}
           >
-            {!current ? 'Découvrir CaRM' : index === steps.length - 1 ? 'Terminer' : 'Suivant'}
+            {!current
+              ? 'Découvrir CaRM'
+              : current.navigation
+                ? `Ouvrir ${current.navigation}`
+                : index === steps.length - 1
+                  ? 'Terminer'
+                  : 'Suivant'}
             <ArrowRight size={15} />
           </Button>
         </div>
