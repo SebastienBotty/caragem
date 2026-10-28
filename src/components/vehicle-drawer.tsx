@@ -24,7 +24,7 @@ import { ReturnVisit } from './forms';
 import { VehicleColor } from './vehicle-color';
 
 export function VehicleDrawer({ id, close }: { id: string; close: () => void }) {
-  const { state, user, act, notify } = useGarage();
+  const { state, can, act, notify } = useGarage();
   const v = state.vehicles.find((v) => v.id === id)!;
   const c = state.customers.find((c) => c.id === v.customerId)!;
   const ref = useRef<HTMLDialogElement>(null);
@@ -33,7 +33,6 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
   const [docId, setDocId] = useState('');
   const [stage, setStage] = useState<Stage>(v.stage);
   const [busy, setBusy] = useState(false);
-  const managed = user.role !== 'mechanic';
   const isClosed = v.stage === 'returned';
   const done = v.tasks.filter((t) => t.status === 'done').length;
   useEffect(() => {
@@ -92,10 +91,12 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
               <strong>{c.name}</strong>
               <small>{c.email}</small>
             </div>
-            <a href={`tel:${c.phone}`} className="icon-button" title="Appeler le client">
-              <Phone size={16} />
-            </a>
-            {managed && (
+            {can('customers.view') && (
+              <a href={`tel:${c.phone}`} className="icon-button" title="Appeler le client">
+                <Phone size={16} />
+              </a>
+            )}
+            {can('mail.send') && (
               <button
                 className="icon-button"
                 title="Préparer un mail"
@@ -125,7 +126,9 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
             <div className="drawer-blocker">
               <AlertTriangle size={17} />
               <span>{v.blocker}</span>
-              {!isClosed && <button onClick={() => setDialog('blocker')}>Modifier</button>}
+              {!isClosed && can('vehicles.edit') && (
+                <button onClick={() => setDialog('blocker')}>Modifier</button>
+              )}
             </div>
           )}
           <div className="drawer-tabs">
@@ -135,12 +138,26 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
               ['parts', 'Pièces'],
               ['docs', 'Documents'],
               ['history', 'Historique'],
-            ].map(([key, label]) => (
-              <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
-                {label}
-                {key === 'work' && <span>{v.tasks.length}</span>}
-              </button>
-            ))}
+            ]
+              .filter(([key]) =>
+                key === 'parts'
+                  ? can('stock.view')
+                  : key === 'docs'
+                    ? can('documents.view') || can('mail.send')
+                    : key === 'history'
+                      ? can('history.view')
+                      : true,
+              )
+              .map(([key, label]) => (
+                <button
+                  key={key}
+                  className={tab === key ? 'active' : ''}
+                  onClick={() => setTab(key)}
+                >
+                  {label}
+                  {key === 'work' && <span>{v.tasks.length}</span>}
+                </button>
+              ))}
           </div>
           <div className="drawer-content">
             {tab === 'work' && (
@@ -162,18 +179,20 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
                 {v.tasks.map((t) => (
                   <TaskCard key={t.id} task={t} vehicle={v} />
                 ))}
-                {!isClosed && v.stage !== 'ready' && (
+                {!isClosed && v.stage !== 'ready' && can('tasks.manage') && (
                   <button className="add-dashed" onClick={() => setDialog('task')}>
                     <Plus size={16} /> Ajouter un travail
                   </button>
                 )}
                 {!isClosed && (
                   <div className="drawer-work-actions">
-                    <Button onClick={() => setDialog('blocker')}>
-                      <AlertTriangle size={15} />
-                      {v.blocker ? 'Modifier le blocage' : 'Signaler un blocage'}
-                    </Button>
-                    {managed &&
+                    {can('vehicles.edit') && (
+                      <Button onClick={() => setDialog('blocker')}>
+                        <AlertTriangle size={15} />
+                        {v.blocker ? 'Modifier le blocage' : 'Signaler un blocage'}
+                      </Button>
+                    )}
+                    {can('vehicles.stage') &&
                       v.tasks.every((t) => t.status === 'done') &&
                       !v.blocker &&
                       v.stage !== 'ready' && (
@@ -201,7 +220,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
             )}
             {tab === 'notes' && (
               <>
-                {!isClosed && (
+                {!isClosed && can('vehicles.edit') && (
                   <Form
                     label="Ajouter la note"
                     onSubmit={async (f) => {
@@ -237,11 +256,11 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
                 </div>
               </>
             )}
-            {tab === 'parts' && (
+            {tab === 'parts' && can('stock.view') && (
               <>
                 <div className="drawer-section-title">
                   <h3>Pièces du dossier</h3>
-                  {!isClosed && (
+                  {!isClosed && can('stock.reserve') && (
                     <button className="text-button" onClick={() => setDialog('reserve')}>
                       <Plus size={14} />
                       Réserver
@@ -269,29 +288,33 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
                       ) : (
                         !isClosed && (
                           <div>
-                            <Button
-                              onClick={async () => {
-                                try {
-                                  await act({ type: 'consume', id: r.id });
-                                } catch (e) {
-                                  notify((e as Error).message);
-                                }
-                              }}
-                            >
-                              Montée
-                            </Button>
-                            <button
-                              className="text-button"
-                              onClick={async () => {
-                                try {
-                                  await act({ type: 'release', id: r.id });
-                                } catch (e) {
-                                  notify((e as Error).message);
-                                }
-                              }}
-                            >
-                              Libérer
-                            </button>
+                            {can('stock.consume') && (
+                              <Button
+                                onClick={async () => {
+                                  try {
+                                    await act({ type: 'consume', id: r.id });
+                                  } catch (e) {
+                                    notify((e as Error).message);
+                                  }
+                                }}
+                              >
+                                Montée
+                              </Button>
+                            )}
+                            {can('stock.reserve') && (
+                              <button
+                                className="text-button"
+                                onClick={async () => {
+                                  try {
+                                    await act({ type: 'release', id: r.id });
+                                  } catch (e) {
+                                    notify((e as Error).message);
+                                  }
+                                }}
+                              >
+                                Libérer
+                              </button>
+                            )}
                           </div>
                         )
                       )}
@@ -319,11 +342,11 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
                 )}
               </>
             )}
-            {tab === 'docs' && (
+            {tab === 'docs' && (can('documents.view') || can('mail.send')) && (
               <>
                 <div className="drawer-section-title">
                   <h3>Devis et factures</h3>
-                  {managed && (
+                  {can('documents.prepare') && (
                     <div>
                       <button className="text-button" onClick={() => setDialog('estimate')}>
                         + Devis
@@ -358,7 +381,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
                       </Badge>
                     </div>
                   ))}
-                {managed && (
+                {can('mail.send') && (
                   <button className="add-dashed" onClick={() => setDialog('mail')}>
                     <Mail size={16} />
                     Préparer un mail
@@ -366,7 +389,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
                 )}
               </>
             )}
-            {tab === 'history' && (
+            {tab === 'history' && can('history.view') && (
               <>
                 <h3>Historique du véhicule</h3>
                 <div className="history-event">
@@ -412,7 +435,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
             {isClosed ? (
               <>
                 <Badge tone="green">Visite clôturée</Badge>
-                {managed && (
+                {can('vehicles.create') && (
                   <Button className="primary" onClick={() => setDialog('revisit')}>
                     Nouvelle visite
                     <Plus size={15} />
@@ -423,19 +446,23 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
               <>
                 <select
                   aria-label="Étape du véhicule"
+                  disabled={!can('vehicles.stage') && !can('vehicles.return')}
                   value={stage}
                   onChange={(e) => setStage(e.target.value as Stage)}
                 >
                   {stages.map((s) => (
-                    <option value={s.id} key={s.id}>
+                    <option value={s.id} key={s.id} disabled={!can('vehicles.stage')}>
                       {s.label}
                     </option>
                   ))}
-                  {managed && <option value="returned">Remis au client</option>}
+                  {can('vehicles.return') && <option value="returned">Remis au client</option>}
                 </select>
                 <Button
                   className="primary"
-                  disabled={stage === v.stage}
+                  disabled={
+                    stage === v.stage ||
+                    !can(stage === 'returned' ? 'vehicles.return' : 'vehicles.stage')
+                  }
                   busy={busy}
                   onClick={changeStage}
                 >
@@ -447,7 +474,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
           </footer>
         </div>
       </dialog>
-      {dialog === 'task' && (
+      {dialog === 'task' && can('tasks.manage') && (
         <Modal title="Ajouter un travail" close={() => setDialog('')}>
           <Form
             onSubmit={async (f) => {
@@ -470,7 +497,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
           </Form>
         </Modal>
       )}
-      {dialog === 'blocker' && (
+      {dialog === 'blocker' && can('vehicles.edit') && (
         <Modal title="Signaler un blocage" close={() => setDialog('')}>
           <Form
             onSubmit={async (f) => {
@@ -489,7 +516,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
           </Form>
         </Modal>
       )}
-      {dialog === 'reserve' && (
+      {dialog === 'reserve' && can('stock.reserve') && (
         <Modal title="Réserver une pièce" close={() => setDialog('')}>
           <Form
             onSubmit={async (f) => {
@@ -518,12 +545,16 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
           </Form>
         </Modal>
       )}
-      {(dialog === 'estimate' || dialog === 'invoice') && (
+      {(dialog === 'estimate' || dialog === 'invoice') && can('documents.prepare') && (
         <DocumentForm kind={dialog} vehicleId={v.id} close={() => setDialog('')} />
       )}
-      {dialog === 'revisit' && <ReturnVisit vehicle={v} close={() => setDialog('')} />}
-      {dialog === 'mail' && <MailComposer vehicle={v} close={() => setDialog('')} />}
-      {docId && (
+      {dialog === 'revisit' && can('vehicles.create') && (
+        <ReturnVisit vehicle={v} close={() => setDialog('')} />
+      )}
+      {dialog === 'mail' && can('mail.send') && (
+        <MailComposer vehicle={v} close={() => setDialog('')} />
+      )}
+      {docId && state.documents.some((d) => d.id === docId) && (
         <DocumentDetail
           document={state.documents.find((d) => d.id === docId)!}
           close={() => setDocId('')}

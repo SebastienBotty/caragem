@@ -1,4 +1,14 @@
 import { z } from 'zod';
+import {
+  actionPermissions,
+  can,
+  requirePermission,
+  permissionOverridesSchema,
+  rolePermissionsSchema,
+  type Permission,
+  type PermissionOverrides,
+  type RolePermissions,
+} from './permissions.ts';
 
 export const stages = [
   { id: 'reception', label: 'Réception', color: '#6987b7', short: 'Arrivées' },
@@ -33,6 +43,7 @@ export type User = {
   name: string;
   role: 'owner' | 'reception' | 'mechanic';
   color: string;
+  permissions?: PermissionOverrides;
 };
 export type Customer = {
   id: string;
@@ -102,6 +113,7 @@ export type Document = {
   taxRate: number;
   paid: number;
   accepted: boolean;
+  validated?: boolean;
   createdAt: string;
 };
 export type Mail = {
@@ -136,6 +148,7 @@ export type GarageState = {
     businessId: string;
     modules: Record<string, number>;
     configured: boolean;
+    rolePermissions?: RolePermissions;
   };
   users: User[];
   customers: Customer[];
@@ -146,7 +159,7 @@ export type GarageState = {
   documents: Document[];
   mails: Mail[];
   appointments: Appointment[];
-  activity: { id: string; text: string; author: string; at: string }[];
+  activity: { id: string; text: string; author: string; at: string; permissions?: Permission[] }[];
 };
 
 const text = z.string().trim().min(1).max(200);
@@ -245,6 +258,7 @@ export const actionSchema = z.discriminatedUnion('type', [
     taxRate: z.number().min(0).max(30),
   }),
   z.object({ type: z.literal('acceptEstimate'), id, evidence: text }),
+  z.object({ type: z.literal('validateDocument'), id }),
   z.object({ type: z.literal('convertEstimate'), id }),
   z.object({
     type: z.literal('payment'),
@@ -277,12 +291,19 @@ export const actionSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('arrive'), id }),
   z.object({ type: z.literal('revisit'), id, issue: text, due: date }),
+  z.object({ type: z.literal('rolePermissions'), permissions: rolePermissionsSchema }),
+  z.object({
+    type: z.literal('userPermissions'),
+    userId: id,
+    permissions: permissionOverridesSchema,
+  }),
   z.object({
     type: z.literal('settings'),
     name: text,
     country: z.enum(['FR', 'BE']),
     address: optionalText,
     businessId: optionalText,
+    rolePermissions: rolePermissionsSchema.optional(),
     modules: z.object({
       reception: z.number().int().min(1).max(10),
       diagnosis: z.number().int().min(1).max(10),
@@ -308,8 +329,8 @@ export const available = (s: GarageState, partId: string) =>
     .reduce((n, r) => n + r.quantity, 0);
 export const capacity = (stageId: string, modules: number) =>
   modules * (stageId === 'workshop' || stageId === 'diagnosis' ? 1 : 4);
-export function log(s: GarageState, text: string, author: string) {
-  s.activity.unshift({ id: uid(), text, author, at: new Date().toISOString() });
+export function log(s: GarageState, text: string, author: string, permissions?: Permission[]) {
+  s.activity.unshift({ id: uid(), text, author, at: new Date().toISOString(), permissions });
   s.activity = s.activity.slice(0, 500);
 }
 function requireItem<T extends { id: string }>(items: T[], itemId: string): T {
@@ -317,19 +338,25 @@ function requireItem<T extends { id: string }>(items: T[], itemId: string): T {
   if (!item) throw new Error('Élément introuvable dans ce garage.');
   return item;
 }
-function manager(user: User) {
-  if (user.role === 'mechanic')
-    throw new Error('Vous n’avez pas l’autorisation pour cette action.');
-}
-
 export function applyAction(current: GarageState, input: Action, actor: User): GarageState {
   const a = actionSchema.parse(input);
   const s = structuredClone(current);
   if (!s.users.some((u) => u.id === actor.id && u.role === actor.role))
     throw new Error('Utilisateur non autorisé.');
+  actor = s.users.find((u) => u.id === actor.id)!;
+  requirePermission(s, actor, ...actionPermissions(a));
   const now = new Date().toISOString();
   let message = '';
-  const vehicle = (id: string) => requireItem(s.vehicles, id);
+  const vehicle = (id: string) => {
+    const v = requireItem(s.vehicles, id);
+    requirePermission(
+      s,
+      actor,
+      'garage.view',
+      ...(v.stage === 'returned' ? ['history.view' as const] : []),
+    );
+    return v;
+  };
   const activeVehicle = (id: string) => {
     const v = vehicle(id);
     if (v.stage === 'returned')
@@ -344,7 +371,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'customer': {
-      manager(actor);
       s.customers.push({
         id: uid(),
         name: a.name,
@@ -355,7 +381,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'vehicle': {
-      manager(actor);
       requireItem(s.customers, a.customerId);
       const plate = a.plate.toUpperCase();
       if (s.vehicles.some((v) => v.plate === plate && v.stage !== 'returned'))
@@ -386,7 +411,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'stage': {
       const v = activeVehicle(a.id);
-      if (a.stage === 'returned' || a.stage === 'ready') manager(actor);
       if (
         (a.stage === 'returned' || a.stage === 'ready') &&
         s.reservations.some((r) => r.vehicleId === v.id && !r.consumed)
@@ -439,14 +463,14 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
           throw new Error('Cette tâche est déjà attribuée. Demandez à être ajouté.');
         t.assignees = [actor.id];
       } else if (a.operation === 'assign') {
-        manager(actor);
         if (!a.assignees) throw new Error('Sélectionnez les intervenants.');
         a.assignees.forEach((id) => requireItem(s.users, id));
         t.assignees = [...new Set(a.assignees)];
       } else {
-        if (actor.role === 'mechanic' && !t.assignees.includes(actor.id))
+        if (!can(s, actor, 'tasks.manage') && !t.assignees.includes(actor.id))
           throw new Error('Prenez cette tâche avant de la modifier.');
         if (a.operation === 'start') {
+          if (v.stage !== 'workshop') requirePermission(s, actor, 'vehicles.stage');
           if (t.status !== 'todo') throw new Error('L’état de la tâche a changé.');
           if (!t.assignees.length) t.assignees.push(actor.id);
           t.status = 'doing';
@@ -466,7 +490,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'part': {
-      manager(actor);
       if (s.parts.some((p) => p.reference === a.reference))
         throw new Error('Cette référence existe déjà.');
       s.parts.push({ ...a, id: uid() });
@@ -500,13 +523,13 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'release': {
       const r = requireItem(s.reservations, a.id);
+      vehicle(r.vehicleId);
       if (r.consumed) throw new Error('Une pièce utilisée ne peut pas être libérée.');
       s.reservations = s.reservations.filter((x) => x.id !== r.id);
       message = 'Réservation de pièce libérée';
       break;
     }
     case 'adjustStock': {
-      manager(actor);
       const p = requireItem(s.parts, a.id);
       if (available(s, p.id) + a.delta < 0)
         throw new Error('Stock disponible insuffisant pour cet ajustement.');
@@ -515,7 +538,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'order': {
-      manager(actor);
       requireItem(s.parts, a.partId);
       if (a.vehicleId) activeVehicle(a.vehicleId);
       s.orders.push({ ...a, id: uid(), received: 0 });
@@ -523,7 +545,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'receive': {
-      manager(actor);
       const o = requireItem(s.orders, a.id);
       if (o.received + a.quantity > o.quantity)
         throw new Error('La réception dépasse la quantité restante.');
@@ -533,7 +554,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'document': {
-      manager(actor);
       vehicle(a.vehicleId);
       const n = s.documents.filter((d) => d.kind === a.kind).length + 1;
       const d: Document = {
@@ -542,6 +562,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
         number: `${a.kind === 'estimate' ? 'DEV' : 'FAC'}-${new Date().getFullYear()}-${String(n).padStart(3, '0')}`,
         paid: 0,
         accepted: false,
+        validated: false,
         createdAt: now,
       };
       s.documents.push(d);
@@ -549,16 +570,25 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'acceptEstimate': {
-      manager(actor);
       const d = requireItem(s.documents, a.id);
+      vehicle(d.vehicleId);
       if (d.kind !== 'estimate') throw new Error('Ce document n’est pas un devis.');
       d.accepted = true;
       message = `${d.number} : accord enregistré · ${a.evidence}`;
       break;
     }
-    case 'convertEstimate': {
-      manager(actor);
+    case 'validateDocument': {
       const d = requireItem(s.documents, a.id);
+      vehicle(d.vehicleId);
+      if (d.kind !== 'invoice') throw new Error('Enregistrez l’accord du client sur le devis.');
+      if (d.validated) throw new Error('Cette facture est déjà validée.');
+      d.validated = true;
+      message = `${d.number} : facture validée`;
+      break;
+    }
+    case 'convertEstimate': {
+      const d = requireItem(s.documents, a.id);
+      vehicle(d.vehicleId);
       if (d.kind !== 'estimate' || !d.accepted)
         throw new Error('Enregistrez d’abord l’accord sur le devis.');
       if (s.documents.some((x) => x.kind === 'invoice' && x.vehicleId === d.vehicleId))
@@ -576,9 +606,11 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       );
     }
     case 'payment': {
-      manager(actor);
       const d = requireItem(s.documents, a.id);
       if (d.kind !== 'invoice') throw new Error('Un paiement doit être associé à une facture.');
+      vehicle(d.vehicleId);
+      if (!d.validated && !(d.validated === undefined && d.paid > 0))
+        throw new Error('Validez la facture avant d’enregistrer un paiement.');
       if (d.paid + a.amount > totals(d.lines, d.taxRate).gross)
         throw new Error('Le montant dépasse le solde restant.');
       d.paid += a.amount;
@@ -586,8 +618,8 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'mail': {
-      manager(actor);
       vehicle(a.vehicleId);
+      if (a.documentId) requirePermission(s, actor, 'documents.view');
       if (a.documentId && requireItem(s.documents, a.documentId).vehicleId !== a.vehicleId)
         throw new Error('Le document doit appartenir à ce dossier.');
       s.mails.unshift({ ...a, id: uid(), status: 'draft' });
@@ -595,8 +627,9 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'updateMail': {
-      manager(actor);
       const m = requireItem(s.mails, a.id);
+      vehicle(m.vehicleId);
+      if (a.documentId) requirePermission(s, actor, 'documents.view');
       if (m.status === 'sent' || m.status === 'sending')
         throw new Error('Ce mail ne peut plus être modifié.');
       if (a.documentId && requireItem(s.documents, a.documentId).vehicleId !== m.vehicleId)
@@ -613,7 +646,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'appointment': {
-      manager(actor);
       requireItem(s.customers, a.customerId);
       s.appointments.push({
         ...a,
@@ -625,7 +657,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'arrive': {
-      manager(actor);
       const ap = requireItem(s.appointments, a.id);
       if (ap.arrived) throw new Error('Cette arrivée a déjà été enregistrée.');
       const next = applyAction(
@@ -647,7 +678,6 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       return next;
     }
     case 'revisit': {
-      manager(actor);
       const old = vehicle(a.id);
       if (old.stage !== 'returned') throw new Error('Ce véhicule a déjà une visite en cours.');
       if (s.vehicles.some((v) => v.plate === old.plate && v.stage !== 'returned'))
@@ -677,14 +707,29 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'settings': {
-      if (actor.role !== 'owner') throw new Error('Seul le responsable peut configurer le garage.');
-      s.settings = { ...a, configured: true };
+      if (a.rolePermissions && actor.role !== 'owner')
+        throw new Error('Seul le patron peut modifier les permissions.');
+      s.settings = { ...s.settings, ...a, configured: true };
       message = 'Configuration du garage mise à jour';
+      break;
+    }
+    case 'rolePermissions': {
+      if (actor.role !== 'owner') throw new Error('Seul le patron peut modifier les permissions.');
+      s.settings.rolePermissions = a.permissions;
+      message = 'Permissions des rôles mises à jour';
+      break;
+    }
+    case 'userPermissions': {
+      if (actor.role !== 'owner') throw new Error('Seul le patron peut modifier les permissions.');
+      const user = requireItem(s.users, a.userId);
+      if (user.role === 'owner') throw new Error('Le patron conserve toujours un accès complet.');
+      user.permissions = a.permissions;
+      message = `Permissions individuelles de ${user.name} mises à jour`;
       break;
     }
   }
   s.revision += 1;
-  log(s, message, actor.name);
+  log(s, message, actor.name, actionPermissions(a));
   return s;
 }
 

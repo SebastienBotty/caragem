@@ -5,7 +5,7 @@ import { useGarage } from '../provider';
 import { Field, Form, Modal, localDateInput, number, value } from '../ui';
 import { CustomerForm } from './customer-form';
 export function VehicleForm({ close }: { close: () => void }) {
-  const { state, act } = useGarage();
+  const { state, act, can } = useGarage();
   const [customer, setCustomer] = useState(false);
   return (
     <>
@@ -43,9 +43,11 @@ export function VehicleForm({ close }: { close: () => void }) {
               ))}
             </select>
           </Field>
-          <button className="text-button" type="button" onClick={() => setCustomer(true)}>
-            <Plus size={14} /> Créer un client
-          </button>
+          {can('customers.manage') && (
+            <button className="text-button" type="button" onClick={() => setCustomer(true)}>
+              <Plus size={14} /> Créer un client
+            </button>
+          )}
           <div className="form-grid">
             <Field label="Immatriculation">
               <input
@@ -89,7 +91,7 @@ export function VehicleForm({ close }: { close: () => void }) {
           </label>
         </Form>
       </Modal>
-      {customer && <CustomerForm close={() => setCustomer(false)} />}
+      {customer && can('customers.manage') && <CustomerForm close={() => setCustomer(false)} />}
     </>
   );
 }

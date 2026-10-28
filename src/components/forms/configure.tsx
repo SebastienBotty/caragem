@@ -13,6 +13,8 @@ import {
 import { stages } from '@/lib/domain';
 import { useGarage } from '../provider';
 import { Field, Form, Modal, value } from '../ui';
+import { RolePermissionsEditor } from '../permissions-editor';
+import type { RolePermissions } from '@/lib/permissions';
 
 const GarageScene = dynamic(() => import('../garage-scene'), {
   ssr: false,
@@ -20,7 +22,10 @@ const GarageScene = dynamic(() => import('../garage-scene'), {
 });
 
 export function Configure({ close }: { close: () => void }) {
-  const { state, act } = useGarage();
+  const { state, user, act } = useGarage();
+  const [rolePermissions, setRolePermissions] = useState<RolePermissions>(
+    state.settings.rolePermissions ?? {},
+  );
   const [modules, setModules] = useState(state.settings.modules);
   const [focus, setFocus] = useState('all');
   const preview = useMemo(
@@ -46,6 +51,7 @@ export function Configure({ close }: { close: () => void }) {
               country: value(f, 'country') as 'FR' | 'BE',
               address: value(f, 'address'),
               businessId: value(f, 'businessId'),
+              ...(user.role === 'owner' ? { rolePermissions } : {}),
               modules: {
                 reception: modules.reception,
                 diagnosis: modules.diagnosis,
@@ -119,6 +125,12 @@ export function Configure({ close }: { close: () => void }) {
           <p className="muted small-text">
             La capacité est indicative : des places supplémentaires apparaissent si nécessaire.
           </p>
+          {user.role === 'owner' && (
+            <details className="configure-permissions">
+              <summary>Permissions des rôles</summary>
+              <RolePermissionsEditor value={rolePermissions} onChange={setRolePermissions} />
+            </details>
+          )}
         </Form>
         <section className="configure-preview" aria-label="Aperçu de votre garage">
           <GarageScene

@@ -12,7 +12,7 @@ export function CustomersScreen({
   selectVehicle: (id: string) => void;
   search: string;
 }) {
-  const { state, user } = useGarage();
+  const { state, can } = useGarage();
   const [create, setCreate] = useState(false);
   const [expanded, setExpanded] = useState('');
   const clients = state.customers.filter((c) =>
@@ -25,7 +25,7 @@ export function CustomersScreen({
           <h2>Les personnes derrière les voitures.</h2>
           <p>{state.customers.length} clients et leur historique, au même endroit.</p>
         </div>
-        {user.role !== 'mechanic' && (
+        {can('customers.manage') && (
           <Button className="primary" onClick={() => setCreate(true)}>
             <Plus size={16} />
             Nouveau client
@@ -86,7 +86,7 @@ export function CustomersScreen({
           })}
         </div>
       )}
-      {create && <CustomerForm close={() => setCreate(false)} />}
+      {create && can('customers.manage') && <CustomerForm close={() => setCreate(false)} />}
     </>
   );
 }

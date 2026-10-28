@@ -37,6 +37,18 @@ import {
 } from './management';
 import { Dashboard } from './dashboard';
 import { GarageSwitcher } from './garage-switcher';
+import type { Permission } from '@/lib/permissions';
+const pagePermissions: Record<string, Permission> = {
+  garage: 'garage.view',
+  tasks: 'garage.view',
+  vehicles: 'garage.view',
+  customers: 'customers.view',
+  planning: 'planning.view',
+  estimates: 'documents.view',
+  invoices: 'documents.view',
+  inventory: 'stock.view',
+  messages: 'mail.send',
+};
 const navigation = [
   { id: 'garage', title: 'Mon garage', icon: LayoutDashboard },
   { id: 'tasks', title: 'Mon travail', icon: ListChecks },
@@ -50,12 +62,14 @@ const navigation = [
 ];
 
 export function AppShell() {
-  const { state, user, connected, refresh, notify } = useGarage();
-  const [page, setPage] = useState(user.role === 'mechanic' ? 'tasks' : 'garage');
+  const { state, user, connected, refresh, notify, can } = useGarage();
+  const pageAllowed = (id: string) => !pagePermissions[id] || can(pagePermissions[id]);
+  const [requestedPage, setPage] = useState(user.role === 'mechanic' ? 'tasks' : 'garage');
+  const page = pageAllowed(requestedPage) ? requestedPage : 'team';
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
   const [create, setCreate] = useState(false);
-  const [configure, setConfigure] = useState(!state.settings.configured && user.role === 'owner');
+  const [configure, setConfigure] = useState(!state.settings.configured && can('garage.configure'));
   const [menu, setMenu] = useState(false);
   const [profile, setProfile] = useState(false);
   const [switchGarage, setSwitchGarage] = useState(false);
@@ -116,30 +130,34 @@ export function AppShell() {
         </button>
         <span className="nav-label">ESPACE DE TRAVAIL</span>
         <nav>
-          {navigation.map((n, i) => (
-            <div key={n.id}>
-              {i === 5 && <div className="nav-divider" />}
-              <button
-                className={`nav-item ${page === n.id ? 'active' : ''}`}
-                onClick={() => navigate(n.id)}
-              >
-                <n.icon size={18} strokeWidth={1.7} />
-                {n.title}
-                {n.id === 'tasks' && mine > 0 && <span className="nav-count">{mine}</span>}
-                {n.id === 'garage' && <span className="nav-active-dot" />}
-              </button>
-            </div>
-          ))}
+          {navigation
+            .filter((n) => pageAllowed(n.id))
+            .map((n, i) => (
+              <div key={n.id}>
+                {i === 5 && <div className="nav-divider" />}
+                <button
+                  className={`nav-item ${page === n.id ? 'active' : ''}`}
+                  onClick={() => navigate(n.id)}
+                >
+                  <n.icon size={18} strokeWidth={1.7} />
+                  {n.title}
+                  {n.id === 'tasks' && mine > 0 && <span className="nav-count">{mine}</span>}
+                  {n.id === 'garage' && <span className="nav-active-dot" />}
+                </button>
+              </div>
+            ))}
         </nav>
         <div className="sidebar-bottom">
-          <button
-            className={`nav-item ${page === 'messages' ? 'active' : ''}`}
-            onClick={() => navigate('messages')}
-          >
-            <Bell size={18} />
-            Messages
-            {draftCount > 0 && <span className="nav-count">{draftCount}</span>}
-          </button>
+          {can('mail.send') && (
+            <button
+              className={`nav-item ${page === 'messages' ? 'active' : ''}`}
+              onClick={() => navigate('messages')}
+            >
+              <Bell size={18} />
+              Messages
+              {draftCount > 0 && <span className="nav-count">{draftCount}</span>}
+            </button>
+          )}
           <button
             className={`nav-item ${page === 'settings' ? 'active' : ''}`}
             onClick={() => navigate('settings')}
@@ -284,7 +302,7 @@ export function AppShell() {
                   <kbd>⌕</kbd>
                 </label>
               )}
-              {page === 'garage' && user.role !== 'mechanic' && (
+              {page === 'garage' && can('vehicles.create') && (
                 <Button className="primary" onClick={() => setCreate(true)}>
                   <Plus size={17} />
                   Nouvelle arrivée
@@ -321,9 +339,11 @@ export function AppShell() {
         </main>
       </div>
       {switchGarage && <GarageSwitcher close={() => setSwitchGarage(false)} />}
-      {selected && <VehicleDrawer key={selected} id={selected} close={() => setSelected(null)} />}
-      {create && <VehicleForm close={() => setCreate(false)} />}
-      {configure && <Configure close={() => setConfigure(false)} />}
+      {selected && can('garage.view') && state.vehicles.some((v) => v.id === selected) && (
+        <VehicleDrawer key={selected} id={selected} close={() => setSelected(null)} />
+      )}
+      {create && can('vehicles.create') && <VehicleForm close={() => setCreate(false)} />}
+      {configure && can('garage.configure') && <Configure close={() => setConfigure(false)} />}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
 import { io, type Socket } from 'socket.io-client';
 import type { Action, GarageState, User } from '@/lib/domain';
 import type { AccountSummary, GarageAccess } from '@/lib/account';
+import { can as hasPermission, type Permission } from '@/lib/permissions';
 
 export async function request<T = Record<string, unknown>>(
   path: string,
@@ -58,6 +59,7 @@ type Context = {
   connected: boolean;
   smtp: boolean;
   account: AccountSummary | null;
+  can: (permission: Permission) => boolean;
   garages: GarageAccess[];
   act: (a: Action) => Promise<GarageState>;
   refresh: () => Promise<void>;
@@ -136,6 +138,7 @@ export function GarageProvider({
         connected,
         smtp: initial.smtp,
         account: initial.account,
+        can: (permission) => hasPermission(state, user, permission),
         garages: initial.garages,
         act,
         notify,

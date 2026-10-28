@@ -5,7 +5,7 @@ import { useGarage } from '../provider';
 import { Badge, Button, Empty, Field, Form, Modal, formatDate, number, value } from '../ui';
 
 export function MessagesScreen() {
-  const { state, user, act, api, notify, smtp } = useGarage();
+  const { state, can, act, api, notify, smtp } = useGarage();
   const [selected, setSelected] = useState('');
   const mail = state.mails.find((m) => m.id === selected);
   const [sending, setSending] = useState(false);
@@ -79,9 +79,7 @@ export function MessagesScreen() {
         >
           <Form
             key={mail.id}
-            hideSubmit={
-              mail.status === 'sent' || mail.status === 'sending' || user.role === 'mechanic'
-            }
+            hideSubmit={mail.status === 'sent' || mail.status === 'sending' || !can('mail.send')}
             onChange={() => setDirty(true)}
             label="Enregistrer les modifications"
             onSubmit={async (f) => {
@@ -103,18 +101,14 @@ export function MessagesScreen() {
                 type="email"
                 required
                 defaultValue={mail.to}
-                readOnly={
-                  mail.status === 'sent' || mail.status === 'sending' || user.role === 'mechanic'
-                }
+                readOnly={mail.status === 'sent' || mail.status === 'sending' || !can('mail.send')}
               />
             </Field>
             <Field label="Document joint en PDF">
               <select
                 name="documentId"
                 defaultValue={mail.documentId ?? ''}
-                disabled={
-                  mail.status === 'sent' || mail.status === 'sending' || user.role === 'mechanic'
-                }
+                disabled={mail.status === 'sent' || mail.status === 'sending' || !can('mail.send')}
               >
                 <option value="">Aucune pièce jointe</option>
                 {state.documents
@@ -132,9 +126,7 @@ export function MessagesScreen() {
                 required
                 maxLength={200}
                 defaultValue={mail.subject}
-                readOnly={
-                  mail.status === 'sent' || mail.status === 'sending' || user.role === 'mechanic'
-                }
+                readOnly={mail.status === 'sent' || mail.status === 'sending' || !can('mail.send')}
               />
             </Field>
             <Field label="Message">
@@ -143,17 +135,15 @@ export function MessagesScreen() {
                 required
                 rows={9}
                 defaultValue={mail.body}
-                readOnly={
-                  mail.status === 'sent' || mail.status === 'sending' || user.role === 'mechanic'
-                }
+                readOnly={mail.status === 'sent' || mail.status === 'sending' || !can('mail.send')}
               />
             </Field>
-            {(mail.status === 'sent' || mail.status === 'sending' || user.role === 'mechanic') && (
+            {(mail.status === 'sent' || mail.status === 'sending' || !can('mail.send')) && (
               <p className="muted">Message en consultation.</p>
             )}
           </Form>
           {mail.error && <p className="form-error">{mail.error}</p>}
-          {mail.status !== 'sent' && mail.status !== 'sending' && user.role !== 'mechanic' && (
+          {mail.status !== 'sent' && mail.status !== 'sending' && can('mail.send') && (
             <div className="modal-actions">
               <p className="muted small-text">
                 Enregistrez vos modifications avant de valider l’envoi.

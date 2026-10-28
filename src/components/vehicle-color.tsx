@@ -18,7 +18,7 @@ const paints = [
 ] as const;
 
 export function VehicleColor({ vehicle }: { vehicle: Vehicle }) {
-  const { act } = useGarage();
+  const { act, can } = useGarage();
   const [color, setColor] = useState(vehicle.color);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -26,7 +26,7 @@ export function VehicleColor({ vehicle }: { vehicle: Vehicle }) {
     setColor(vehicle.color);
     setError('');
   }, [vehicle.id, vehicle.color]);
-  if (vehicle.stage === 'returned') return null;
+  if (vehicle.stage === 'returned' || !can('vehicles.edit')) return null;
   return (
     <section className="vehicle-paint" aria-label="Couleur du véhicule">
       <div>

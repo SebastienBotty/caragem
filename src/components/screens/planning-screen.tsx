@@ -6,7 +6,7 @@ import { Badge, Button } from '../ui';
 import { AppointmentForm } from '../forms';
 
 export function PlanningScreen({ selectVehicle }: { selectVehicle: (id: string) => void }) {
-  const { state, user, act, notify } = useGarage();
+  const { state, can, act, notify } = useGarage();
   const [create, setCreate] = useState(false);
   const [offset, setOffset] = useState(0);
   const days = Array.from({ length: 5 }, (_, i) => {
@@ -21,7 +21,7 @@ export function PlanningScreen({ selectVehicle }: { selectVehicle: (id: string) 
           <h2>Une semaine qui tourne rond.</h2>
           <p>Rendez-vous à venir et restitutions prévues.</p>
         </div>
-        {user.role !== 'mechanic' && (
+        {can('planning.manage') && (
           <Button className="primary" onClick={() => setCreate(true)}>
             <Plus size={16} />
             Nouveau rendez-vous
@@ -71,7 +71,7 @@ export function PlanningScreen({ selectVehicle }: { selectVehicle: (id: string) 
                     <strong className="mono">{a.plate}</strong>
                     <p>{a.reason}</p>
                     <small>{state.customers.find((c) => c.id === a.customerId)?.name}</small>
-                    {!a.arrived && user.role !== 'mechanic' && (
+                    {!a.arrived && can('vehicles.create') && (
                       <Button
                         onClick={async () => {
                           try {
@@ -108,7 +108,7 @@ export function PlanningScreen({ selectVehicle }: { selectVehicle: (id: string) 
           );
         })}
       </div>
-      {create && <AppointmentForm close={() => setCreate(false)} />}
+      {create && can('planning.manage') && <AppointmentForm close={() => setCreate(false)} />}
     </>
   );
 }

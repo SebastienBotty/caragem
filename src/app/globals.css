@@ -1348,6 +1348,77 @@ th {
 .configure-options > * {
   flex-shrink: 0;
 }
+.configure-permissions summary {
+  cursor: pointer;
+  font-weight: 650;
+  padding: 12px 0;
+}
+.permissions-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.permissions-editor fieldset {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 0;
+  min-width: 0;
+}
+.permissions-editor legend {
+  font-weight: 650;
+  padding: 0 6px;
+}
+.permission-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 64px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--line);
+}
+.permission-row:last-child {
+  border-bottom: 0;
+}
+.permission-row input {
+  justify-self: center;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--blue);
+}
+.permission-head {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+.permission-head > :first-child {
+  text-align: left;
+}
+.permission-individual {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.permission-individual:last-child {
+  border-bottom: 0;
+}
+.permission-individual select {
+  min-width: 0;
+  width: 100%;
+  padding: 8px;
+}
+@media (max-width: 520px) {
+  .permission-individual {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
 .configure-options .module-config {
   margin: 0;
 }

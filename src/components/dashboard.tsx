@@ -43,7 +43,7 @@ export function Dashboard({
   configure: () => void;
   navigate: (s: string) => void;
 }) {
-  const { state, user } = useGarage();
+  const { state, user, can } = useGarage();
   const [filter, setFilter] = useState('all');
   const [focus, setFocus] = useState('all');
   const [activity, setActivity] = useState(true);
@@ -150,7 +150,7 @@ export function Dashboard({
               <Radio size={15} />
               Activité
             </button>
-            {user.role === 'owner' && (
+            {can('garage.configure') && (
               <button className="button" onClick={configure}>
                 <SlidersHorizontal size={15} />
                 <span>Organiser le garage</span>

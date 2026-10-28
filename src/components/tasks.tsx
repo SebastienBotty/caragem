@@ -16,11 +16,12 @@ export function TaskCard({
   showVehicle?: boolean;
   selectVehicle?: (id: string) => void;
 }) {
-  const { state, user, act, notify } = useGarage();
+  const { state, user, act, notify, can } = useGarage();
   const [assign, setAssign] = useState(false);
   const [finish, setFinish] = useState(false);
   const [busy, setBusy] = useState(false);
-  const managed = user.role !== 'mechanic';
+  const managed = can('tasks.manage');
+  const work = can('tasks.work');
   const mine = task.assignees.includes(user.id);
   const editable = vehicle.stage !== 'returned' && vehicle.stage !== 'ready';
   async function action(operation: 'claim' | 'start' | 'reopen') {
@@ -104,24 +105,27 @@ export function TaskCard({
                     <UserPlus size={16} />
                   </button>
                 )}
-                {!task.assignees.length && task.status !== 'done' && (
+                {work && !task.assignees.length && task.status !== 'done' && (
                   <Button busy={busy} onClick={() => action('claim')}>
                     Prendre
                   </Button>
                 )}
-                {(mine || managed) && task.status === 'todo' && (
-                  <Button busy={busy} onClick={() => action('start')}>
-                    <Play size={13} />
-                    Commencer
-                  </Button>
-                )}
-                {(mine || managed) && task.status === 'doing' && (
+                {work &&
+                  (mine || managed) &&
+                  task.status === 'todo' &&
+                  (vehicle.stage === 'workshop' || can('vehicles.stage')) && (
+                    <Button busy={busy} onClick={() => action('start')}>
+                      <Play size={13} />
+                      Commencer
+                    </Button>
+                  )}
+                {work && (mine || managed) && task.status === 'doing' && (
                   <Button className="primary" onClick={() => setFinish(true)}>
                     <Check size={14} />
                     Terminer
                   </Button>
                 )}
-                {(mine || managed) && task.status === 'done' && (
+                {work && (mine || managed) && task.status === 'done' && (
                   <button
                     className="icon-button"
                     title="Rouvrir la tâche"
@@ -136,7 +140,7 @@ export function TaskCard({
           </div>
         </div>
       </div>
-      {assign && (
+      {assign && managed && (
         <Modal title="Attribuer les travaux" subtitle={task.title} close={() => setAssign(false)}>
           <Form
             onSubmit={async (f) => {
@@ -174,7 +178,7 @@ export function TaskCard({
           </Form>
         </Modal>
       )}
-      {finish && (
+      {finish && work && (
         <Modal title="Terminer le travail" subtitle={task.title} close={() => setFinish(false)}>
           <Form
             label="Marquer comme terminé"

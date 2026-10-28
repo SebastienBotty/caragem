@@ -13,7 +13,7 @@ export function VehiclesScreen({
   selectVehicle: (id: string) => void;
   search: string;
 }) {
-  const { state, user } = useGarage();
+  const { state, can } = useGarage();
   const [create, setCreate] = useState(false);
   const [filter, setFilter] = useState('active');
   const vehicles = state.vehicles.filter(
@@ -31,7 +31,7 @@ export function VehiclesScreen({
           <h2>Chaque véhicule a son histoire.</h2>
           <p>Retrouvez les visites en cours et les interventions passées.</p>
         </div>
-        {user.role !== 'mechanic' && (
+        {can('vehicles.create') && (
           <Button className="primary" onClick={() => setCreate(true)}>
             <Plus size={16} />
             Nouvelle arrivée
@@ -45,15 +45,17 @@ export function VehiclesScreen({
               ['active', 'Au garage'],
               ['history', 'Historique'],
               ['all', 'Toutes les visites'],
-            ].map(([key, label]) => (
-              <button
-                className={filter === key ? 'active' : ''}
-                key={key}
-                onClick={() => setFilter(key)}
-              >
-                {label}
-              </button>
-            ))}
+            ]
+              .filter(([key]) => key === 'active' || can('history.view'))
+              .map(([key, label]) => (
+                <button
+                  className={filter === key ? 'active' : ''}
+                  key={key}
+                  onClick={() => setFilter(key)}
+                >
+                  {label}
+                </button>
+              ))}
           </div>
         </div>
         {!vehicles.length ? (
@@ -123,7 +125,7 @@ export function VehiclesScreen({
           </div>
         )}
       </div>
-      {create && <VehicleForm close={() => setCreate(false)} />}
+      {create && can('vehicles.create') && <VehicleForm close={() => setCreate(false)} />}
     </>
   );
 }

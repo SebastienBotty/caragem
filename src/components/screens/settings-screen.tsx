@@ -6,9 +6,11 @@ import { useGarage, request } from '../provider';
 import { Badge, Button, Field, Form, value } from '../ui';
 import { Configure } from '../forms';
 import { GoogleSignIn } from '../google-sign-in';
+import { RolePermissionsDialog } from '../permissions-editor';
 
 export function SettingsScreen() {
-  const { state, user, account, refresh, notify } = useGarage();
+  const { state, user, account, refresh, notify, can } = useGarage();
+  const [roles, setRoles] = useState(false);
   const [config, setConfig] = useState(false);
   const [googlePassword, setGooglePassword] = useState('');
   return (
@@ -36,8 +38,11 @@ export function SettingsScreen() {
               </span>
             ))}
           </div>
-          {user.role === 'owner' && (
+          {can('garage.configure') && (
             <Button onClick={() => setConfig(true)}>Modifier le garage</Button>
+          )}
+          {user.role === 'owner' && (
+            <Button onClick={() => setRoles(true)}>Permissions des rôles</Button>
           )}
         </section>
         <section className="data-panel settings-card">
@@ -115,7 +120,8 @@ export function SettingsScreen() {
           )}
         </section>
       </div>
-      {config && user.role === 'owner' && <Configure close={() => setConfig(false)} />}
+      {config && can('garage.configure') && <Configure close={() => setConfig(false)} />}
+      {roles && <RolePermissionsDialog close={() => setRoles(false)} />}
     </>
   );
 }

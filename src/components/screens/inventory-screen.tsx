@@ -7,12 +7,12 @@ import { Badge, Button, Empty, Field, Form, Modal, formatDate, number, value } f
 import { OrderForm, PartForm } from '../forms';
 
 export function InventoryScreen() {
-  const { state, user, act } = useGarage();
+  const { state, can, act } = useGarage();
   const [tab, setTab] = useState('stock');
   const [dialog, setDialog] = useState('');
   const [item, setItem] = useState('');
   const [search, setSearch] = useState('');
-  const manage = user.role !== 'mechanic';
+  const manage = can('stock.manage');
   const low = state.parts.filter((p) => available(state, p.id) < p.min).length;
   return (
     <>
@@ -196,9 +196,9 @@ export function InventoryScreen() {
           />
         )}
       </div>
-      {dialog === 'part' && <PartForm close={() => setDialog('')} />}
-      {dialog === 'order' && <OrderForm close={() => setDialog('')} />}
-      {dialog === 'adjust' && (
+      {dialog === 'part' && manage && <PartForm close={() => setDialog('')} />}
+      {dialog === 'order' && manage && <OrderForm close={() => setDialog('')} />}
+      {dialog === 'adjust' && manage && (
         <Modal title="Ajuster le stock" close={() => setDialog('')}>
           <Form
             onSubmit={async (f) => {
@@ -235,7 +235,7 @@ export function InventoryScreen() {
           </Form>
         </Modal>
       )}
-      {dialog === 'receive' && (
+      {dialog === 'receive' && manage && (
         <Modal title="Réceptionner la commande" close={() => setDialog('')}>
           <Form
             onSubmit={async (f) => {

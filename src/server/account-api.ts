@@ -5,6 +5,7 @@ import { Store, passwordHash, passwordMatches, type Session } from './store.ts';
 import { appOrigin, cookie, type Reply } from './http.ts';
 import type { ServerResponse } from 'node:http';
 import { authAttemptAllowed } from './auth-rate-limit.ts';
+import { visibleState } from '../lib/permissions.ts';
 import { broadcastGarage } from './realtime.ts';
 const credentials = z.object({
   email: z
@@ -40,7 +41,7 @@ export async function accountApi(
       200,
       session
         ? {
-            state: await store.get(session.garageId),
+            state: visibleState(await store.get(session.garageId), session.userId),
             userId: session.userId,
             expires: session.expires,
             account: account

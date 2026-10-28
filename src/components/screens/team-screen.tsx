@@ -3,9 +3,13 @@ import { useEffect, useState } from 'react';
 import { Plus, Copy, Check } from 'lucide-react';
 import { useGarage, request } from '../provider';
 import { Avatar, Badge, Button, Field, Form, Modal, value } from '../ui';
+import { RolePermissionsDialog, UserPermissionsDialog } from '../permissions-editor';
+import type { User } from '@/lib/domain';
 
 export function TeamScreen() {
-  const { state, user } = useGarage();
+  const { state, user, can } = useGarage();
+  const [permissionsFor, setPermissionsFor] = useState<User | null>(null);
+  const [roles, setRoles] = useState(false);
   const [invite, setInvite] = useState(false);
   const [url, setUrl] = useState('');
   const [copied, setCopied] = useState(false);
@@ -23,7 +27,7 @@ export function TeamScreen() {
     }
   };
   useEffect(() => {
-    if (user.role === 'owner') void load();
+    if (can('team.invite')) void load();
     else setPending([]);
   }, [user.role, state.revision]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
@@ -35,6 +39,9 @@ export function TeamScreen() {
         </div>
         <div className="toolbar-actions">
           {user.role === 'owner' && (
+            <Button onClick={() => setRoles(true)}>Permissions des rôles</Button>
+          )}
+          {can('team.invite') && (
             <Button className="primary" onClick={() => setInvite(true)}>
               <Plus size={16} />
               Inviter un collaborateur
@@ -73,11 +80,14 @@ export function TeamScreen() {
                   Terminées
                 </span>
               </div>
+              {user.role === 'owner' && u.role !== 'owner' && (
+                <Button onClick={() => setPermissionsFor(u)}>Permissions individuelles</Button>
+              )}
             </article>
           );
         })}
       </div>
-      {user.role === 'owner' && (
+      {can('team.invite') && (
         <section className="data-panel settings-card">
           <h3>Invitations en attente</h3>
           <p>Les liens sont personnels et expirent après 7 jours.</p>
@@ -115,7 +125,7 @@ export function TeamScreen() {
           )}
         </section>
       )}
-      {invite && user.role === 'owner' && (
+      {invite && can('team.invite') && (
         <Modal
           title="Inviter un collaborateur"
           subtitle="Le lien est personnel, valable 7 jours et utilisable une seule fois."
@@ -171,6 +181,10 @@ export function TeamScreen() {
             </div>
           )}
         </Modal>
+      )}
+      {roles && <RolePermissionsDialog close={() => setRoles(false)} />}
+      {permissionsFor && (
+        <UserPermissionsDialog member={permissionsFor} close={() => setPermissionsFor(null)} />
       )}
     </>
   );

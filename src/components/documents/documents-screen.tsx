@@ -13,7 +13,7 @@ export function DocumentsScreen({
   kind: 'estimate' | 'invoice';
   selectVehicle: (id: string) => void;
 }) {
-  const { state, user } = useGarage();
+  const { state, can } = useGarage();
   const [create, setCreate] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
   const [filter, setFilter] = useState('all');
@@ -34,7 +34,7 @@ export function DocumentsScreen({
               : 'Préparez vos propositions et conservez l’accord du client.'}
           </p>
         </div>
-        {user.role !== 'mechanic' && (
+        {can('documents.prepare') && (
           <Button className="primary" onClick={() => setCreate(true)}>
             <Plus size={16} />
             {kind === 'invoice' ? 'Nouvelle facture' : 'Nouveau devis'}
@@ -48,6 +48,31 @@ export function DocumentsScreen({
           comptable.
         </span>
       </div>
+      {kind === 'invoice' && can('finances.view') && (
+        <div className="inventory-stats" aria-label="Statistiques financières">
+          <div>
+            <span>
+              Total facturé
+              <strong>
+                {money(all.reduce((sum, d) => sum + totals(d.lines, d.taxRate).gross, 0))}
+              </strong>
+            </span>
+          </div>
+          <div>
+            <span>
+              Paiements enregistrés<strong>{money(all.reduce((sum, d) => sum + d.paid, 0))}</strong>
+            </span>
+          </div>
+          <div>
+            <span>
+              Reste à régler
+              <strong>
+                {money(all.reduce((sum, d) => sum + totals(d.lines, d.taxRate).gross - d.paid, 0))}
+              </strong>
+            </span>
+          </div>
+        </div>
+      )}
       <div className="data-panel">
         <div className="panel-toolbar">
           <div className="segmented">
@@ -88,7 +113,7 @@ export function DocumentsScreen({
                         <button className="table-link" onClick={() => setDetail(d.id)}>
                           {d.number}
                         </button>
-                        <small>Brouillon</small>
+                        <small>{d.validated ? 'Validée' : 'Brouillon'}</small>
                       </td>
                       <td>
                         <strong>{c.name}</strong>
@@ -138,8 +163,10 @@ export function DocumentsScreen({
           </div>
         )}
       </div>
-      {create && <DocumentForm kind={kind} close={() => setCreate(false)} />}
-      {detail && (
+      {create && can('documents.prepare') && (
+        <DocumentForm kind={kind} close={() => setCreate(false)} />
+      )}
+      {detail && state.documents.some((d) => d.id === detail) && (
         <DocumentDetail
           document={state.documents.find((d) => d.id === detail)!}
           close={() => setDetail(null)}

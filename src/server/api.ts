@@ -8,6 +8,7 @@ import { validOrigin } from './http.ts';
 export { validOrigin, appOrigin, cookie } from './http.ts';
 import { actionSchema, log } from '../lib/domain.ts';
 import { createGoogleApi, googleConfiguration } from './google-auth.ts';
+import { requirePermission, visibleState } from '../lib/permissions.ts';
 import { broadcastGarage } from './realtime.ts';
 
 async function body(req: IncomingMessage) {
@@ -57,23 +58,26 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       if (req.method === 'POST' && path === '/api/actions') {
         const state = await store.act(session, actionSchema.parse(inputBody));
         await broadcastGarage(io, state);
-        send(200, { state: state });
+        send(200, { state: visibleState(state, session.userId) });
         return true;
       }
       if (req.method === 'GET' && path.startsWith('/api/document/')) {
+        requirePermission(s, actor, 'garage.view', 'documents.view');
         const documentId = path.slice('/api/document/'.length);
         const d = s.documents.find((d) => d.id === documentId);
         if (!d) throw new Error('Document introuvable.');
+        if (s.vehicles.find((v) => v.id === d.vehicleId)?.stage === 'returned')
+          requirePermission(s, actor, 'history.view');
+        const readable = visibleState(s, actor.id);
         const { documentPdf } = await import('./pdf.ts');
-        const bytes = await documentPdf(s, d);
+        const bytes = await documentPdf(readable, d);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${d.number}.pdf"`);
         res.end(Buffer.from(bytes));
         return true;
       }
       if (req.method === 'POST' && path === '/api/send-mail') {
-        if (actor.role === 'mechanic')
-          throw new Error('Envoi réservé au responsable ou à l’accueil.');
+        requirePermission(s, actor, 'garage.view', 'customers.view', 'mail.send');
         const input = z.object({ id: z.string() }).parse(inputBody);
         if (s.demo) throw new Error('Les envois réels sont désactivés dans la démonstration.');
         if (!process.env.SMTP_HOST || !process.env.SMTP_FROM)
@@ -81,9 +85,14 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
             'Configurez le serveur SMTP avant d’envoyer des mails. Le brouillon est conservé.',
           );
         const { result: mailSnapshot } = await store.updateGarage(s.id, (current) => {
+          const sender = current.users.find((u) => u.id === session.userId)!;
+          requirePermission(current, sender, 'garage.view', 'customers.view', 'mail.send');
           const mail = current.mails.find((m) => m.id === input.id);
           if (!mail || mail.status === 'sent' || mail.status === 'sending')
             throw new Error('Ce mail ne peut pas être envoyé.');
+          if (mail.documentId) requirePermission(current, sender, 'documents.view');
+          if (current.vehicles.find((v) => v.id === mail.vehicleId)?.stage === 'returned')
+            requirePermission(current, sender, 'history.view');
           const snapshot = structuredClone(mail);
           mail.status = 'sending';
           current.revision++;
@@ -132,7 +141,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
             log(current, `Mail envoyé : ${m.subject}`, actor.name);
           });
           await broadcast(s.id);
-          send(200, { state: current });
+          send(200, { state: visibleState(current, session.userId) });
         } catch {
           await store.updateGarage(s.id, (current) => {
             const m = current.mails.find((m) => m.id === input.id)!;

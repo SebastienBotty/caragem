@@ -6,11 +6,10 @@ import { useGarage } from '../provider';
 import { Badge, Button, Field, Form, Modal, cents, formatDate, value } from '../ui';
 
 export function DocumentDetail({ document, close }: { document: Document; close: () => void }) {
-  const { state, user, act } = useGarage();
+  const { state, can, act } = useGarage();
   const v = state.vehicles.find((v) => v.id === document.vehicleId)!;
   const customer = state.customers.find((c) => c.id === v.customerId)!;
   const t = totals(document.lines, document.taxRate);
-  const manage = user.role !== 'mechanic';
   const [payment, setPayment] = useState(false);
   const [accept, setAccept] = useState(false);
   return (
@@ -24,7 +23,9 @@ export function DocumentDetail({ document, close }: { document: Document; close:
         <div className="document-preview">
           <div className="document-brand">
             <strong>{state.settings.name}</strong>
-            <Badge tone="amber">BROUILLON MVP</Badge>
+            <Badge tone={document.validated ? 'green' : 'amber'}>
+              {document.validated ? 'VALIDÉE · MVP' : 'BROUILLON MVP'}
+            </Badge>
           </div>
           <p>
             {state.settings.address}
@@ -97,12 +98,12 @@ export function DocumentDetail({ document, close }: { document: Document; close:
           <a className="button" href={`/api/document/${document.id}`}>
             <Download size={16} /> Télécharger le PDF
           </a>
-          {manage && document.kind === 'estimate' && !document.accepted && (
+          {can('documents.validate') && document.kind === 'estimate' && !document.accepted && (
             <Button className="primary" onClick={() => setAccept(true)}>
               <Check size={16} /> Enregistrer l’accord
             </Button>
           )}
-          {manage && document.kind === 'estimate' && document.accepted && (
+          {can('documents.prepare') && document.kind === 'estimate' && document.accepted && (
             <Button
               className="primary"
               onClick={async () => {
@@ -118,14 +119,31 @@ export function DocumentDetail({ document, close }: { document: Document; close:
               <ArrowRight size={16} />
             </Button>
           )}
-          {manage && document.kind === 'invoice' && document.paid < t.gross && (
-            <Button className="primary" onClick={() => setPayment(true)}>
-              <Euro size={16} /> Ajouter un paiement
+          {can('documents.validate') && document.kind === 'invoice' && !document.validated && (
+            <Button
+              className="primary"
+              onClick={async () => {
+                try {
+                  await act({ type: 'validateDocument', id: document.id });
+                } catch (e) {
+                  alert((e as Error).message);
+                }
+              }}
+            >
+              Valider la facture
             </Button>
           )}
+          {can('payments.manage') &&
+            (document.validated || (document.validated === undefined && document.paid > 0)) &&
+            document.kind === 'invoice' &&
+            document.paid < t.gross && (
+              <Button className="primary" onClick={() => setPayment(true)}>
+                <Euro size={16} /> Ajouter un paiement
+              </Button>
+            )}
         </div>
       </Modal>
-      {payment && (
+      {payment && can('payments.manage') && (
         <Modal title="Enregistrer un paiement" close={() => setPayment(false)}>
           <Form
             onSubmit={async (f) => {
@@ -154,7 +172,7 @@ export function DocumentDetail({ document, close }: { document: Document; close:
           </Form>
         </Modal>
       )}
-      {accept && (
+      {accept && can('documents.validate') && (
         <Modal title="Accord sur le devis" close={() => setAccept(false)}>
           <Form
             onSubmit={async (f) => {

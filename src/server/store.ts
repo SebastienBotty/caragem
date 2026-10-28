@@ -11,6 +11,7 @@ import {
   type User,
 } from '../lib/domain.ts';
 import { postgresDatabase, type Database, type Sql } from './database.ts';
+import { requirePermission } from '../lib/permissions.ts';
 const scryptAsync = promisify(scrypt);
 export async function passwordHash(password: string) {
   const salt = randomBytes(16).toString('hex');
@@ -367,8 +368,11 @@ export class Store {
   }
   async invite(session: Session, email: string, role: User['role']) {
     const state = await this.get(session.garageId);
-    if (state.users.find((u) => u.id === session.userId)?.role !== 'owner')
-      throw new Error('Vous n’avez pas l’autorisation pour cette action.');
+    requirePermission(
+      state,
+      state.users.find((u) => u.id === session.userId)!,
+      'team.invite',
+    );
     if (role !== 'mechanic' && role !== 'reception') throw new Error('Rôle invalide.');
     email = email.toLowerCase();
     if (
@@ -398,8 +402,11 @@ export class Store {
   }
   async invitations(session: Session) {
     const state = await this.get(session.garageId);
-    if (state.users.find((u) => u.id === session.userId)?.role !== 'owner')
-      throw new Error('Vous n’avez pas l’autorisation pour cette action.');
+    requirePermission(
+      state,
+      state.users.find((u) => u.id === session.userId)!,
+      'team.invite',
+    );
     return this.rows<{ id: string; email: string; role: string; expires: number }>(
       'SELECT id,email,role,expires::float8 AS expires FROM invitations WHERE garage_id=$1 AND expires>$2 ORDER BY expires DESC',
       [state.id, Date.now()],

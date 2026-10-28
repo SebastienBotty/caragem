@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { validOrigin } from './http.ts';
 import type { Store } from './store.ts';
 import type { GarageState } from '../lib/domain.ts';
+import { visibleState } from '../lib/permissions.ts';
 
 export async function broadcastGarage(io: Server, state: GarageState) {
   for (const socket of await io.in(state.id).fetchSockets()) {
@@ -15,7 +16,7 @@ export async function broadcastGarage(io: Server, state: GarageState) {
       socket.disconnect(true);
       continue;
     }
-    socket.emit('garage:state', state);
+    socket.emit('garage:state', visibleState(state, session.userId));
   }
 }
 
@@ -56,7 +57,7 @@ export function createRealtime(http: HttpServer, store: Store) {
     socket.join(`user:${s.userId}`);
     if (s.email) socket.join(`account:${s.email}`);
     try {
-      socket.emit('garage:state', await store.get(s.garageId));
+      socket.emit('garage:state', visibleState(await store.get(s.garageId), s.userId));
     } catch {
       socket.disconnect(true);
       return;
