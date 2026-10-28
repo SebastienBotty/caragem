@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Layers3,
   LayoutDashboard,
@@ -19,6 +19,7 @@ import {
   Menu,
   Radio,
   Check,
+  Compass,
 } from 'lucide-react';
 import { request, useGarage } from './provider';
 import { Avatar, Button } from './ui';
@@ -38,6 +39,7 @@ import {
 import { Dashboard } from './dashboard';
 import { GarageSwitcher } from './garage-switcher';
 import type { Permission } from '@/lib/permissions';
+import { OnboardingTour } from './onboarding-tour';
 const pagePermissions: Record<string, Permission> = {
   garage: 'garage.view',
   tasks: 'garage.view',
@@ -73,17 +75,18 @@ export function AppShell() {
   const [menu, setMenu] = useState(false);
   const [profile, setProfile] = useState(false);
   const [switchGarage, setSwitchGarage] = useState(false);
+  const [tourLaunch, setTourLaunch] = useState(0);
   const draftCount = state.mails.filter(
     (m) => m.status === 'draft' || m.status === 'failed',
   ).length;
   const mine = state.vehicles
     .flatMap((v) => v.tasks)
     .filter((t) => t.assignees.includes(user.id) && t.status !== 'done').length;
-  const navigate = (id: string) => {
+  const navigate = useCallback((id: string) => {
     setPage(id);
     setMenu(false);
     setSearch('');
-  };
+  }, []);
   const title =
     navigation.find((n) => n.id === page)?.title ??
     (page === 'messages' ? 'Messages' : 'Paramètres');
@@ -148,6 +151,17 @@ export function AppShell() {
             ))}
         </nav>
         <div className="sidebar-bottom">
+          <button
+            className="nav-item"
+            onClick={() => {
+              setMenu(false);
+              setProfile(false);
+              setTourLaunch((n) => n + 1);
+            }}
+          >
+            <Compass size={18} />
+            Visite guidée
+          </button>
           {can('mail.send') && (
             <button
               className={`nav-item ${page === 'messages' ? 'active' : ''}`}
@@ -303,32 +317,38 @@ export function AppShell() {
                 </label>
               )}
               {page === 'garage' && can('vehicles.create') && (
-                <Button className="primary" onClick={() => setCreate(true)}>
+                <Button className="primary" data-tour="arrival" onClick={() => setCreate(true)}>
                   <Plus size={17} />
                   Nouvelle arrivée
                 </Button>
               )}
             </div>
           </div>
-          {page === 'garage' && (
-            <Dashboard
-              search={search}
-              selected={selected}
-              selectVehicle={setSelected}
-              configure={() => setConfigure(true)}
-              navigate={navigate}
-            />
-          )}
-          {page === 'tasks' && <TasksScreen selectVehicle={setSelected} />}
-          {page === 'customers' && <CustomersScreen selectVehicle={setSelected} search={search} />}
-          {page === 'vehicles' && <VehiclesScreen selectVehicle={setSelected} search={search} />}
-          {page === 'planning' && <PlanningScreen selectVehicle={setSelected} />}
-          {page === 'estimates' && <DocumentsScreen kind="estimate" selectVehicle={setSelected} />}
-          {page === 'invoices' && <DocumentsScreen kind="invoice" selectVehicle={setSelected} />}
-          {page === 'inventory' && <InventoryScreen />}
-          {page === 'team' && <TeamScreen />}
-          {page === 'messages' && <MessagesScreen />}
-          {page === 'settings' && <SettingsScreen />}
+          <div data-tour="content">
+            {page === 'garage' && (
+              <Dashboard
+                search={search}
+                selected={selected}
+                selectVehicle={setSelected}
+                configure={() => setConfigure(true)}
+                navigate={navigate}
+              />
+            )}
+            {page === 'tasks' && <TasksScreen selectVehicle={setSelected} />}
+            {page === 'customers' && (
+              <CustomersScreen selectVehicle={setSelected} search={search} />
+            )}
+            {page === 'vehicles' && <VehiclesScreen selectVehicle={setSelected} search={search} />}
+            {page === 'planning' && <PlanningScreen selectVehicle={setSelected} />}
+            {page === 'estimates' && (
+              <DocumentsScreen kind="estimate" selectVehicle={setSelected} />
+            )}
+            {page === 'invoices' && <DocumentsScreen kind="invoice" selectVehicle={setSelected} />}
+            {page === 'inventory' && <InventoryScreen />}
+            {page === 'team' && <TeamScreen />}
+            {page === 'messages' && <MessagesScreen />}
+            {page === 'settings' && <SettingsScreen />}
+          </div>
           <footer className="workspace-footer">
             <span>CaRM · Le garage, en mouvement.</span>
             <span>
@@ -344,6 +364,12 @@ export function AppShell() {
       )}
       {create && can('vehicles.create') && <VehicleForm close={() => setCreate(false)} />}
       {configure && can('garage.configure') && <Configure close={() => setConfigure(false)} />}
+      <OnboardingTour
+        enabled={!configure && !create && !selected && !switchGarage && !profile}
+        launch={tourLaunch}
+        page={page}
+        navigate={navigate}
+      />
     </div>
   );
 }

@@ -54,6 +54,7 @@ export async function request<T = Record<string, unknown>>(
   return data;
 }
 type Context = {
+  onboardingSeen: boolean;
   state: GarageState;
   user: User;
   connected: boolean;
@@ -79,6 +80,7 @@ export function GarageProvider({
 }: {
   children: ReactNode;
   initial: {
+    onboardingSeen?: boolean;
     state: GarageState;
     userId: string;
     smtp: boolean;
@@ -133,6 +135,7 @@ export function GarageProvider({
   return (
     <Ctx.Provider
       value={{
+        onboardingSeen: initial.onboardingSeen ?? false,
         state,
         user,
         connected,

@@ -33,7 +33,13 @@ export type Session = {
   expires: number;
   tokenHash: string;
 };
-type Account = { email: string; hash: string | null; name: string; googleLinked: boolean };
+type Account = {
+  email: string;
+  hash: string | null;
+  name: string;
+  googleLinked: boolean;
+  onboardingSeen: boolean;
+};
 export type GoogleProfile = { sub: string; email: string; name: string; emailVerified: boolean };
 export type GoogleAuthRequest = {
   verifier: string;
@@ -115,7 +121,7 @@ export class Store {
     await this.ready;
     return (
       await this.rows<Account>(
-        'SELECT email,hash,name,EXISTS(SELECT 1 FROM google_identities g WHERE g.email=accounts.email) AS "googleLinked" FROM accounts WHERE email=$1',
+        'SELECT email,hash,name,onboarding_seen AS "onboardingSeen",EXISTS(SELECT 1 FROM google_identities g WHERE g.email=accounts.email) AS "googleLinked" FROM accounts WHERE email=$1',
         [email.toLowerCase()],
         sql,
       )
@@ -428,6 +434,22 @@ export class Store {
       await sql.query('UPDATE accounts SET hash=$1 WHERE email=$2', [hash, session.email]);
       await sql.query('DELETE FROM sessions WHERE account_email=$1', [session.email]);
     });
+  }
+  async completeOnboarding(session: Session) {
+    await this.ready;
+    // ASVS 8.2.2: the account/member comes from the verified session, never the request body.
+    if (session.email) {
+      await this.db.query('UPDATE accounts SET onboarding_seen=true WHERE email=$1', [
+        session.email,
+      ]);
+    } else {
+      await this.updateGarage(session.garageId, (state) => {
+        const user = state.users.find((u) => u.id === session.userId);
+        if (!state.demo || !user) throw new Error('Session invalide.');
+        user.onboardingSeen = true;
+        state.revision++;
+      });
+    }
   }
   async close() {
     try {

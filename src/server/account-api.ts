@@ -37,11 +37,16 @@ export async function accountApi(
   };
   if (req.method === 'GET' && path === '/api/session') {
     const account = session?.email ? await store.account(session.email) : undefined;
+    const garage = session ? await store.get(session.garageId) : undefined;
     send(
       200,
       session
         ? {
-            state: visibleState(await store.get(session.garageId), session.userId),
+            state: visibleState(garage!, session.userId),
+            onboardingSeen:
+              account?.onboardingSeen ??
+              garage?.users.find((u) => u.id === session.userId)?.onboardingSeen ??
+              false,
             userId: session.userId,
             expires: session.expires,
             account: account
@@ -119,6 +124,7 @@ export async function accountApi(
     return true;
   }
   const routes = [
+    '/api/onboarding',
     '/api/logout',
     '/api/demo-user',
     '/api/garages',
@@ -139,6 +145,12 @@ export async function accountApi(
     return true;
   }
   if (req.method !== 'POST') return false;
+  if (path === '/api/onboarding') {
+    z.object({}).strict().parse(body);
+    await store.completeOnboarding(session);
+    send(200, { ok: true });
+    return true;
+  }
   if (path === '/api/logout') {
     await store.logout(session);
     io.in(`session:${session.tokenHash}`).disconnectSockets();

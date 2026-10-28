@@ -13,4 +13,5 @@ export type SessionData = {
   account: AccountSummary | null;
   garages: GarageAccess[];
   smtp: boolean;
+  onboardingSeen: boolean;
 };

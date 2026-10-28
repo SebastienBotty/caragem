@@ -45,6 +45,7 @@ export type User = {
   role: 'owner' | 'reception' | 'mechanic';
   color: string;
   permissions?: PermissionOverrides;
+  onboardingSeen?: boolean;
 };
 export type Customer = {
   id: string;

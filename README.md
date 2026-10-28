@@ -16,6 +16,12 @@ Ouvrir http://localhost:3000 pour créer son compte et son premier garage vide. 
 
 Dans **Équipe**, le responsable crée un lien d’invitation personnel à transmettre au collaborateur. Le destinataire crée son compte ou se connecte à son compte existant, puis rejoint le garage. Les liens expirent après 7 jours, sont utilisables une seule fois et peuvent être révoqués. La démonstration reste accessible sans compte ; elle est isolée des garages personnels et n’envoie aucun mail réel.
 
+### Visite guidée
+
+Au premier accès à son garage, l’utilisateur reçoit une visite guidée des rubriques auxquelles ses permissions donnent accès. La configuration initiale du garage passe en premier. Les étapes mettent en évidence l’interface et changent de rubrique sans modifier les données métier. Les boutons Précédent/Suivant permettent de parcourir le guide ; Plus tard, Passer la visite, la croix et Échap permettent de le fermer.
+
+Le guide peut être relancé depuis **Visite guidée** dans la barre latérale, y compris depuis le menu sur mobile. Sa fermeture est mémorisée en PostgreSQL sur le compte personnel, pour tous ses garages et appareils ; en démonstration, elle est mémorisée par profil. Si l’enregistrement échoue, le guide se ferme et un message prévient qu’il pourra réapparaître à la prochaine connexion.
+
 ### Clients et véhicules
 
 Un client peut avoir plusieurs véhicules. À l’arrivée, sélectionner le client permet de choisir un véhicule enregistré ou d’en ajouter un nouveau. La plaque et le modèle sont préremplis pour un véhicule connu ; le kilométrage et la couleur peuvent être actualisés pour la nouvelle visite. Un véhicule déjà au garage ne peut pas être enregistré une seconde fois.

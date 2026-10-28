@@ -81,6 +81,7 @@ export function Workspace() {
         smtp: session.smtp,
         account: session.account,
         garages: session.garages,
+        onboardingSeen: session.onboardingSeen,
       }}
       onSessionChange={refresh}
     >
