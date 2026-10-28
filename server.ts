@@ -1,0 +1,36 @@
+import { existsSync } from 'node:fs';
+import { createServer } from 'node:http';
+import next from 'next';
+import { Store } from './src/server/store.ts';
+import { createApi } from './src/server/api.ts';
+import { createRealtime } from './src/server/realtime.ts';
+
+if (existsSync('.env')) process.loadEnvFile('.env');
+const dev = !process.argv.includes('--production');
+const hostname = process.env.HOST ?? '127.0.0.1';
+const port = Number(process.env.PORT ?? 3000);
+const app = next({ dev, hostname, port });
+await app.prepare();
+const handle = app.getRequestHandler();
+const store = new Store();
+const http = createServer(async (req, res) => {
+  try {
+    if (!(await api(req, res))) await handle(req, res);
+  } catch (error) {
+    console.error(error);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.end('Erreur serveur.');
+    }
+  }
+});
+const io = createRealtime(http, store);
+const api = createApi(store, io);
+http.listen(port, hostname, () =>
+  console.log(`CaRM prêt sur http://${hostname === '0.0.0.0' ? 'localhost' : hostname}:${port}`),
+);
+process.on('SIGTERM', () => {
+  io.close();
+  http.close();
+  store.close();
+});

@@ -1,0 +1,11 @@
+node_modules/
+.next/
+data/
+test-results/
+playwright-report/
+.npm-cache/
+.env*
+public/brands/
+package-lock.json
+next-env.d.ts
+*.tsbuildinfo
