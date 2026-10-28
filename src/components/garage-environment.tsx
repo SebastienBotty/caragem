@@ -3,8 +3,10 @@ import { useLayoutEffect, useRef } from 'react';
 import { Html } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { garageSite, type ZoneLayout } from '@/lib/layout';
+import { circulationWidth, garageSite, type ZoneLayout } from '@/lib/layout';
 import { Box, Plant, TireStack, ToolBench } from './garage-primitives';
+import { Mechanic } from './mechanic';
+import type { User } from '@/lib/domain';
 
 const steel = '#3d4855',
   plaster = '#b6aa96';
@@ -235,9 +237,11 @@ export function ParkingEdge({ zone }: { zone: ZoneLayout }) {
 export function ServiceWing({
   site,
   onOpenStock,
+  owners,
 }: {
   site: ReturnType<typeof garageSite>;
   onOpenStock: () => void;
+  owners: User[];
 }) {
   const { gl } = useThree();
   // Keep the labels in the same DOM container while Canvas connects its event target.
@@ -298,6 +302,21 @@ export function ServiceWing({
           </group>
         ))}
       </group>
+      {owners.map((owner, index) => (
+        <group
+          key={owner.id}
+          position={[officeX + (index - (owners.length - 1) / 2) * 1.2, 0, -2.5]}
+        >
+          <Mechanic
+            index={index}
+            color={owner.color}
+            name={`${owner.name} · Patron`}
+            animate={false}
+            resting
+            location="office"
+          />
+        </group>
+      ))}
       {[-1.65, 1.65].map((dx) => (
         <group key={dx} position={[officeX + dx, 0, 2.25]}>
           <Box position={[0, 0.38, 0]} size={[1.55, 0.48, 1.05]} color="#3d474c" />
@@ -359,7 +378,13 @@ export function ServiceWing({
   );
 }
 
-export function GarageGround({ site }: { site: ReturnType<typeof garageSite> }) {
+export function GarageGround({
+  site,
+  zones,
+}: {
+  site: ReturnType<typeof garageSite>;
+  zones: ZoneLayout[];
+}) {
   const { minX, maxX, minZ, maxZ, entryX } = site;
   const width = maxX - minX,
     depth = maxZ - minZ,
@@ -372,7 +397,44 @@ export function GarageGround({ site }: { site: ReturnType<typeof garageSite> }) 
       <Box position={[cx, -0.07, maxZ + 1.2]} size={[width + 3, 0.15, 2]} color="#bfb8a7" />
       <Box position={[minX - 0.6, 0, cz]} size={[1, 0.16, depth]} color="#738651" />
       <Box position={[maxX + 0.6, 0, cz]} size={[1, 0.16, depth]} color="#738651" />
-      <Box position={[cx, 0.015, 0]} size={[width, 0.035, 6]} color="#6c7374" />
+      <Box position={[cx, 0.015, 0]} size={[width, 0.035, circulationWidth]} color="#6c7374" />
+      {[minX + circulationWidth / 2, maxX - circulationWidth / 2].map((x) => (
+        <Box
+          key={x}
+          position={[x, 0.015, cz]}
+          size={[circulationWidth - 0.6, 0.035, depth]}
+          color="#6c7374"
+        />
+      ))}
+      {[minZ + circulationWidth / 2, maxZ - circulationWidth / 2].map((z) => (
+        <Box
+          key={z}
+          position={[cx, 0.015, z]}
+          size={[width, 0.035, circulationWidth - 0.6]}
+          color="#6c7374"
+        />
+      ))}
+      {zones.map((zone) => {
+        const x = zone.x + zone.width / 2 + circulationWidth / 2;
+        const far = zone.z + (Math.sign(zone.z) * zone.depth) / 2;
+        return (
+          <group key={zone.id}>
+            <Box
+              position={[x, 0.015, far / 2]}
+              size={[circulationWidth - 0.6, 0.035, Math.abs(far)]}
+              color="#6c7374"
+            />
+            {Array.from({ length: Math.floor(Math.abs(far) / 4) }, (_, i) => (
+              <Box
+                key={i}
+                position={[x, 0.045, Math.sign(far) * (2 + i * 4)]}
+                size={[0.09, 0.02, 1.6]}
+                color="#e1dac4"
+              />
+            ))}
+          </group>
+        );
+      })}
       {Array.from({ length: Math.floor(width / 4) }, (_, i) => (
         <Box
           key={i}

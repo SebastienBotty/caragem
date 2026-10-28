@@ -1324,6 +1324,102 @@ th {
 .modal.wide {
   width: min(730px, calc(100vw - 32px));
 }
+.modal.configure-modal {
+  width: min(1500px, calc(100vw - 40px));
+  max-height: 94dvh;
+  padding: 0;
+  overflow: hidden;
+}
+.configure-modal > .modal-head {
+  padding: 22px 26px;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+.configure-layout {
+  display: grid;
+  grid-template-columns: 350px minmax(0, 1fr);
+  height: min(790px, calc(94dvh - 110px));
+}
+.configure-options {
+  padding: 22px;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+}
+.configure-options > * {
+  flex-shrink: 0;
+}
+.configure-options .module-config {
+  margin: 0;
+}
+.configure-options .form-footer {
+  position: sticky;
+  bottom: -22px;
+  margin-top: auto;
+  padding: 16px 0;
+  background: var(--surface);
+}
+.configure-options .form-footer .button {
+  width: 100%;
+  justify-content: center;
+}
+.configure-preview {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+}
+.configure-preview .garage-canvas {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+.configure-preview .scene-top {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.configure-preview-note {
+  margin: 0;
+  padding: 14px 20px 6px;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.configure-preview > .muted {
+  margin: 0;
+  padding: 0 20px 14px;
+}
+@media (max-width: 800px) {
+  .modal.configure-modal {
+    width: calc(100vw - 16px);
+  }
+  .configure-modal > .modal-head {
+    padding: 16px;
+  }
+  .configure-layout {
+    display: flex;
+    flex-direction: column;
+    height: calc(94dvh - 110px);
+  }
+  .configure-preview {
+    order: -1;
+    flex: 0 0 32%;
+    min-height: 180px;
+  }
+  .configure-preview-note,
+  .configure-preview > .muted,
+  .configure-preview .scene-hint,
+  .configure-preview .scene-bottom > span {
+    display: none;
+  }
+  .configure-options {
+    min-height: 0;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+    padding: 16px;
+  }
+  .configure-options .form-footer {
+    bottom: -16px;
+  }
+}
 .modal::backdrop {
   background: #1b2c4a42;
   backdrop-filter: blur(3px);

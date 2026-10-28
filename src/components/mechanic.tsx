@@ -11,12 +11,14 @@ export function Mechanic({
   name,
   animate,
   resting = false,
+  location,
 }: {
   index: number;
   color: string;
   name: string;
   animate: boolean;
   resting?: boolean;
+  location?: 'work' | 'lounge' | 'office';
 }) {
   const body = useRef<THREE.Group>(null);
   const arm = useRef<THREE.Group>(null);
@@ -44,7 +46,11 @@ export function Mechanic({
         zIndexRange={[15, 0]}
         style={{ pointerEvents: 'none' }}
       >
-        <span ref={label} className="mechanic-name" data-location={resting ? 'lounge' : 'work'}>
+        <span
+          ref={label}
+          className="mechanic-name"
+          data-location={location ?? (resting ? 'lounge' : 'work')}
+        >
           <i style={{ background: color }} />
           {name}
         </span>

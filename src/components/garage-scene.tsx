@@ -1,16 +1,28 @@
 'use client';
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Component,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, RoundedBox, ContactShadows, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Maximize, Minus, Plus, RotateCcw, MousePointer2 } from 'lucide-react';
 import {
-  garageLayout,
+  garagePlacement,
   garageSite,
   garageCamera,
   slotPosition,
   mechanicAssignments,
+  circulationWidth,
+  rowAisle,
+  vehicleRoute,
   type ZoneLayout,
 } from '@/lib/layout';
 import { stages, type GarageState, type Vehicle, type User } from '@/lib/domain';
@@ -78,6 +90,7 @@ function Car({
   onSelect,
   animate,
   workers,
+  zones,
 }: {
   vehicle: Vehicle;
   target: [number, number, number];
@@ -86,6 +99,7 @@ function Car({
   onSelect: () => void;
   animate: boolean;
   workers: User[];
+  zones: ZoneLayout[];
 }) {
   const ref = useRef<THREE.Group>(null);
   const first = useRef(true);
@@ -98,17 +112,21 @@ function Car({
     if (!ref.current) return;
     if (first.current || !animate) {
       ref.current.position.set(tx, ty, tz);
+      ref.current.rotation.y = 0;
       first.current = false;
       waypoints.current = [];
       return;
     }
     const current = ref.current.position;
-    waypoints.current = [
-      new THREE.Vector3(current.x, ty, 0),
-      new THREE.Vector3(tx, ty, 0),
-      new THREE.Vector3(tx, ty, tz),
-    ];
-  }, [tx, ty, tz, animate]);
+    if (current.x === tx && current.y === ty && current.z === tz) {
+      waypoints.current = [];
+      ref.current.rotation.y = 0;
+      return;
+    }
+    waypoints.current = vehicleRoute([current.x, ty, current.z], [tx, ty, tz], zones).map(
+      (p) => new THREE.Vector3(...p),
+    );
+  }, [tx, ty, tz, animate, zones]);
 
   useFrame((_, dt) => {
     if (crew.current) crew.current.visible = waypoints.current.length === 0;
@@ -273,6 +291,26 @@ function Zone({
           />
         </RoundedBox>
       )}
+      {Array.from({ length: zone.rows - 1 }, (_, i) => {
+        const z = rowAisle(zone, i + 1);
+        return (
+          <group key={i}>
+            <Box
+              position={[zone.x, 0.06, z]}
+              size={[zone.width, 0.025, circulationWidth - 0.4]}
+              color="#6c7374"
+            />
+            {Array.from({ length: Math.floor(zone.width / 4) }, (_, j) => (
+              <Box
+                key={j}
+                position={[zone.x - zone.width / 2 + 2 + j * 4, 0.08, z]}
+                size={[1.6, 0.015, 0.09]}
+                color="#e1dac4"
+              />
+            ))}
+          </group>
+        );
+      })}
       <Box
         position={[zone.x, 0.045, zone.z - zone.depth / 2 + 0.5]}
         size={[zone.width - 1, 0.025, 0.12]}
@@ -413,7 +451,7 @@ function Camera({
       mouseButtons={{ LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
       touches={{ ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN }}
       minDistance={9}
-      maxDistance={600}
+      maxDistance={1500}
       enableDamping
       onStart={() => {
         moving.current = false;
@@ -441,6 +479,7 @@ export default function GarageScene({
   focus,
   setFocus,
   onOpenStock,
+  preview = false,
 }: {
   state: GarageState;
   selected: string | null;
@@ -449,14 +488,15 @@ export default function GarageScene({
   focus: string;
   setFocus: (id: string) => void;
   onOpenStock: () => void;
+  preview?: boolean;
 }) {
-  const modulesKey = JSON.stringify(state.settings.modules);
-  const countsKey = stages
-    .map((st) => state.vehicles.filter((v) => v.stage === st.id).length)
-    .join(',');
-  // Layout only changes when capacity or occupancy changes, not on each note/socket event.
-  const zones = useMemo(() => garageLayout(state), [modulesKey, countsKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [zoom, setZoom] = useState(5);
+  const previousPlacement = useRef<ReturnType<typeof garagePlacement> | undefined>(undefined);
+  const placement = useMemo(() => garagePlacement(state, previousPlacement.current), [state]);
+  useLayoutEffect(() => {
+    previousPlacement.current = placement;
+  }, [placement]);
+  const { zones, positions } = placement;
+  const [zoom, setZoom] = useState(0);
   const [reset, setReset] = useState(0);
   const [animate, setAnimate] = useState(false);
   useEffect(() => {
@@ -466,12 +506,6 @@ export default function GarageScene({
     q.addEventListener('change', update);
     return () => q.removeEventListener('change', update);
   }, []);
-  const positions = new Map<string, [number, number, number]>();
-  zones.forEach((z) =>
-    state.vehicles
-      .filter((v) => v.stage === z.id)
-      .forEach((v, i) => positions.set(v.id, slotPosition(z, i))),
-  );
   const site = garageSite(zones);
   const assignments = mechanicAssignments(state);
   const fallback = (
@@ -494,15 +528,19 @@ export default function GarageScene({
       <div className="scene-top">
         <span className="scene-mode">
           <span className="live-dot" />
-          VUE DU GARAGE
+          {preview ? 'APERÇU DU GARAGE' : 'VUE DU GARAGE'}
         </span>
-        <span className="scene-hint">Cliquez sur un véhicule pour ouvrir son dossier</span>
+        <span className="scene-hint">
+          {preview
+            ? 'Ajoutez des modules pour voir votre garage évoluer'
+            : 'Cliquez sur un véhicule pour ouvrir son dossier'}
+        </span>
       </div>
       <SceneBoundary fallback={fallback}>
         <Canvas
           shadows
           dpr={[1, 1.6]}
-          camera={{ position: [40, 45, 45], fov: 39, near: 0.1, far: 2000 }}
+          camera={{ position: [40, 45, 45], fov: 39, zoom: preview ? 1 : 3, near: 0.1, far: 2000 }}
           fallback={fallback}
           gl={{ antialias: true, powerPreference: 'high-performance' }}
         >
@@ -522,12 +560,16 @@ export default function GarageScene({
             shadow-camera-bottom={-50}
             shadow-bias={-0.0004}
           />
-          <GarageGround site={site} />
-          <ServiceWing site={site} onOpenStock={onOpenStock} />
+          <GarageGround site={site} zones={zones} />
+          <ServiceWing
+            site={site}
+            onOpenStock={onOpenStock}
+            owners={state.users.filter((u) => u.role === 'owner')}
+          />
           <BreakRoom
             room={site.lounge}
             mechanics={assignments.filter((a) => a.vehicleId === null).map((a) => a.user)}
-            animate={animate}
+            animate={animate && !preview}
             onFocus={() => setFocus('lounge')}
           />
           {zones.map((zone) => (
@@ -543,8 +585,13 @@ export default function GarageScene({
                 selected={v.id === selected}
                 faded={!filter(v)}
                 onSelect={() => onSelect(v.id)}
-                animate={animate}
+                animate={
+                  animate &&
+                  !preview &&
+                  previousPlacement.current?.modulesKey === placement.modulesKey
+                }
                 workers={assignments.filter((a) => a.vehicleId === v.id).map((a) => a.user)}
+                zones={zones}
               />
             ))}
           <ContactShadows
