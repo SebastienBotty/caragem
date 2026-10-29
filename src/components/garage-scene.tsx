@@ -2,6 +2,7 @@
 import {
   Component,
   Suspense,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -12,6 +13,7 @@ import {
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, RoundedBox, ContactShadows, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
+import { z } from 'zod';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Maximize, Minus, Plus, RotateCcw, MousePointer2 } from 'lucide-react';
 import {
@@ -398,12 +400,20 @@ function Zone({
     </group>
   );
 }
+const cameraViewSchema = z.object({
+  position: z.tuple([z.number(), z.number(), z.number()]),
+  target: z.tuple([z.number(), z.number(), z.number()]),
+  zoom: z.number().positive().max(1000),
+});
+
 function Camera({
+  garageId,
   focus,
   zones,
   zoom,
   reset,
 }: {
+  garageId?: string;
   focus: string;
   zones: ZoneLayout[];
   zoom: number;
@@ -414,15 +424,58 @@ function Camera({
   const target = useRef(new THREE.Vector3());
   const position = useRef(new THREE.Vector3(40, 45, 45));
   const moving = useRef(true);
+  const previousRequest = useRef<{ garageId?: string; focus: string; reset: number }>(undefined);
+  const previousZoom = useRef(zoom);
+  const view = useRef<z.infer<typeof cameraViewSchema>>(undefined);
+  const persist = useCallback(() => {
+    if (!garageId || !view.current) return;
+    try {
+      sessionStorage.setItem(`carm-camera:${garageId}`, JSON.stringify(view.current));
+    } catch {
+      /* The current camera still works when browser storage is unavailable. */
+    }
+  }, [garageId]);
   useEffect(() => {
+    window.addEventListener('pagehide', persist);
+    return () => {
+      persist();
+      window.removeEventListener('pagehide', persist);
+    };
+  }, [persist]);
+  useEffect(() => {
+    const previous = previousRequest.current;
+    const initial = !previous || previous.garageId !== garageId;
+    if (!initial && previous.focus === focus && previous.reset === reset) return;
+    previousRequest.current = { garageId, focus, reset };
+    if (initial && garageId && ref.current) {
+      try {
+        const raw = sessionStorage.getItem(`carm-camera:${garageId}`);
+        const saved = cameraViewSchema.safeParse(raw ? JSON.parse(raw) : undefined);
+        if (saved.success) {
+          view.current = saved.data;
+          camera.position.fromArray(saved.data.position);
+          camera.zoom = saved.data.zoom;
+          camera.updateProjectionMatrix();
+          ref.current.target.fromArray(saved.data.target);
+          moving.current = false;
+          ref.current.update();
+          return;
+        }
+      } catch {
+        /* An unreadable saved view falls back to the overview. */
+      }
+    }
     const frame = garageCamera(zones, focus, size.width / size.height);
     target.current.set(...frame.target);
     position.current.set(...frame.position);
     moving.current = true;
-  }, [focus, reset, zones, size.width, size.height]);
+  }, [garageId, focus, reset, zones, size.width, size.height, camera]);
   useEffect(() => {
+    if (previousZoom.current === zoom) return;
+    previousZoom.current = zoom;
+    moving.current = false;
     if (camera instanceof THREE.OrthographicCamera) {
-      camera.zoom = zoom;
+      camera.zoom *= zoom > 0 ? 1.22 : 0.82;
       camera.updateProjectionMatrix();
     } else if (ref.current) {
       const dir = camera.position.clone().sub(ref.current.target);
@@ -430,14 +483,19 @@ function Camera({
         ref.current.target.clone().add(dir.multiplyScalar(zoom > 0 ? 0.82 : 1.22)),
       );
     }
-  }, [zoom, camera]);
+    ref.current?.update();
+    persist();
+  }, [zoom, camera, persist]);
   useFrame((_, dt) => {
     if (!moving.current || !ref.current) return;
     const t = 1 - Math.exp(-5 * dt);
     camera.position.lerp(position.current, t);
     ref.current.target.lerp(target.current, t);
     ref.current.update();
-    if (camera.position.distanceTo(position.current) < 0.03) moving.current = false;
+    if (camera.position.distanceTo(position.current) < 0.03) {
+      moving.current = false;
+      persist();
+    }
   });
   return (
     <OrbitControls
@@ -449,6 +507,15 @@ function Camera({
       minDistance={9}
       maxDistance={1500}
       enableDamping
+      onChange={() => {
+        if (ref.current)
+          view.current = {
+            position: camera.position.toArray(),
+            target: ref.current.target.toArray(),
+            zoom: camera.zoom,
+          };
+      }}
+      onEnd={persist}
       onStart={() => {
         moving.current = false;
       }}
@@ -495,6 +562,16 @@ export default function GarageScene({
   const [zoom, setZoom] = useState(0);
   const [reset, setReset] = useState(0);
   const [animate, setAnimate] = useState(false);
+  const initialCamera = useMemo(
+    () => ({
+      position: [40, 45, 45] as [number, number, number],
+      fov: 39,
+      zoom: preview ? 1 : 3,
+      near: 0.1,
+      far: 2000,
+    }),
+    [preview],
+  );
   useEffect(() => {
     const q = matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => setAnimate(!q.matches);
@@ -536,7 +613,7 @@ export default function GarageScene({
         <Canvas
           shadows
           dpr={[1, 1.6]}
-          camera={{ position: [40, 45, 45], fov: 39, zoom: preview ? 1 : 3, near: 0.1, far: 2000 }}
+          camera={initialCamera}
           fallback={fallback}
           gl={{ antialias: true, powerPreference: 'high-performance' }}
         >
@@ -598,7 +675,13 @@ export default function GarageScene({
             resolution={512}
             frames={1}
           />
-          <Camera focus={focus} zones={zones} zoom={zoom} reset={reset} />
+          <Camera
+            garageId={preview ? undefined : state.id}
+            focus={focus}
+            zones={zones}
+            zoom={zoom}
+            reset={reset}
+          />
         </Canvas>
       </SceneBoundary>
       <div className="scene-bottom">

@@ -79,7 +79,7 @@ Il faut arrêter le serveur de développement avant de démarrer la production s
 ## Ce qui fonctionne
 
 - Authentification, comptes indépendants des garages, rôles responsable/accueil/mécanicien par garage, invitations individuelles pour nouveaux comptes et comptes existants.
-- Garage 3D à angle fixe, déplacement de la vue, zoom par zone, modules configurables, capacité extensible et emplacements stables lors des transferts. Respect du réglage de réduction des animations.
+- Garage 3D à angle fixe, déplacement de la vue, zoom par zone, modules configurables, capacité extensible et emplacements stables lors des transferts. La caméra est mémorisée par garage dans l’onglet, y compris après une action, un redimensionnement, une navigation ou un rechargement. Les commandes de zone, de vue d’ensemble et de réinitialisation permettent de recadrer volontairement. Respect du réglage de réduction des animations.
 - Salle de repos avec tables, télévision, distributeur et billard. Les mécaniciens sans tâche en cours y apparaissent ; leur nom reste visible dans le garage.
 - Clients, dossiers véhicules, visites successives et historique, notes et journal d’activité.
 - Tâches avec plusieurs intervenants, attribution par le responsable ou prise d’une tâche disponible, suivi du temps saisi manuellement.

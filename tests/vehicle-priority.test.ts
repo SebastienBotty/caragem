@@ -108,6 +108,7 @@ test('only priority vehicles at reception show the alert, alongside the selectio
     '@/lib/layout': layout,
     '@/lib/domain': domain,
     three: THREE,
+    zod: require('zod'),
     '@react-three/fiber': { useFrame() {} },
     './vehicle-priority': { VehiclePriority: 'VehiclePriority' },
   };
