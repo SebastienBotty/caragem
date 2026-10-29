@@ -86,7 +86,6 @@ function Car({
   vehicle,
   target,
   selected,
-  faded,
   onSelect,
   animate,
   workers,
@@ -95,7 +94,6 @@ function Car({
   vehicle: Vehicle;
   target: [number, number, number];
   selected: boolean;
-  faded: boolean;
   onSelect: () => void;
   animate: boolean;
   workers: User[];
@@ -183,11 +181,7 @@ function Car({
           position={[0, 0.63, 0]}
           castShadow
         >
-          <meshStandardMaterial
-            color={faded ? '#cad1db' : vehicle.color}
-            metalness={0.15}
-            roughness={0.35}
-          />
+          <meshStandardMaterial color={vehicle.color} metalness={0.15} roughness={0.35} />
         </RoundedBox>
         {workers.length > 0 && (
           <>
@@ -214,7 +208,7 @@ function Car({
           position={[0, 1.47, -0.28]}
           castShadow
         >
-          <meshStandardMaterial color={faded ? '#cad1db' : vehicle.color} roughness={0.45} />
+          <meshStandardMaterial color={vehicle.color} roughness={0.45} />
         </RoundedBox>
         <Suspense fallback={null}>
           <RoofLogo model={vehicle.model} />
@@ -576,14 +570,13 @@ export default function GarageScene({
             <Zone key={zone.id} zone={zone} state={state} onFocus={setFocus} />
           ))}
           {state.vehicles
-            .filter((v) => positions.has(v.id))
+            .filter((v) => positions.has(v.id) && filter(v))
             .map((v) => (
               <Car
                 key={v.id}
                 vehicle={v}
                 target={positions.get(v.id)!}
                 selected={v.id === selected}
-                faded={!filter(v)}
                 onSelect={() => onSelect(v.id)}
                 animate={
                   animate &&
