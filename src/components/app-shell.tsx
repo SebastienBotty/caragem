@@ -21,7 +21,8 @@ import {
   Check,
   Compass,
 } from 'lucide-react';
-import { request, useGarage } from './provider';
+import { useGarage } from './provider';
+import { TrainingTour } from './training-tour';
 import { Avatar, Button } from './ui';
 import { Configure, VehicleForm } from './forms';
 import { VehicleDrawer } from './vehicle-drawer';
@@ -64,10 +65,12 @@ const navigation = [
   { id: 'team', title: 'Équipe', icon: Users },
 ];
 
-export function AppShell() {
-  const { state, user, connected, refresh, notify, can } = useGarage();
+export function AppShell({ initialPage }: { initialPage?: string }) {
+  const { state, user, connected, refresh, notify, can, request, training } = useGarage();
   const pageAllowed = (id: string) => !pagePermissions[id] || can(pagePermissions[id]);
-  const [requestedPage, setPage] = useState(user.role === 'mechanic' ? 'tasks' : 'garage');
+  const [requestedPage, setPage] = useState(
+    initialPage ?? (user.role === 'mechanic' ? 'tasks' : 'garage'),
+  );
   const page = pageAllowed(requestedPage) ? requestedPage : 'team';
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
@@ -77,6 +80,7 @@ export function AppShell() {
   const [profile, setProfile] = useState(false);
   const [switchGarage, setSwitchGarage] = useState(false);
   const [tourLaunch, setTourLaunch] = useState(0);
+  const [trainingPage, setTrainingPage] = useState<string>();
   const draftCount = state.mails.filter(
     (m) => m.status === 'draft' || m.status === 'failed',
   ).length;
@@ -153,17 +157,19 @@ export function AppShell() {
             ))}
         </nav>
         <div className="sidebar-bottom">
-          <button
-            className="nav-item"
-            onClick={() => {
-              setMenu(false);
-              setProfile(false);
-              setTourLaunch((n) => n + 1);
-            }}
-          >
-            <Compass size={18} />
-            Visite guidée
-          </button>
+          {!training && (
+            <button
+              className="nav-item"
+              onClick={() => {
+                setMenu(false);
+                setProfile(false);
+                setTourLaunch((n) => n + 1);
+              }}
+            >
+              <Compass size={18} />
+              Visite guidée
+            </button>
+          )}
           {can('mail.send') && (
             <button
               data-tour-nav="messages"
@@ -199,6 +205,7 @@ export function AppShell() {
             </div>
             <button
               className="icon-button"
+              disabled={training}
               title="Se déconnecter"
               aria-label="Se déconnecter"
               onClick={async () => {
@@ -244,6 +251,7 @@ export function AppShell() {
             </button>
             <button
               className="profile-button"
+              disabled={training}
               title="Changer de profil de démonstration"
               aria-label="Options du profil"
               onClick={() => setProfile(!profile)}
@@ -354,6 +362,20 @@ export function AppShell() {
               {state.demo ? 'Données de démonstration' : 'Données enregistrées dans votre garage'}
             </span>
           </footer>
+          {!training && (
+            <Button
+              className="page-tour-launch"
+              data-tour="page-help"
+              aria-label={`Visite guidée de ${title}`}
+              onClick={() => {
+                setMenu(false);
+                setProfile(false);
+                setTrainingPage(page);
+              }}
+            >
+              <Compass size={17} /> Visite guidée
+            </Button>
+          )}
         </main>
       </div>
       {switchGarage && <GarageSwitcher close={() => setSwitchGarage(false)} />}
@@ -363,13 +385,24 @@ export function AppShell() {
       {create && can('vehicles.create') && <VehicleForm close={() => setCreate(false)} />}
       {configure && can('garage.configure') && <Configure close={() => setConfigure(false)} />}
       <OnboardingTour
-        enabled={!configure && !create && !selected && !switchGarage && !profile}
+        enabled={
+          !training &&
+          !configure &&
+          !create &&
+          !selected &&
+          !switchGarage &&
+          !profile &&
+          !trainingPage
+        }
         launch={tourLaunch}
         page={page}
         navigate={navigate}
         menuOpen={menu}
         showMenu={setMenu}
       />
+      {trainingPage && (
+        <TrainingTour page={trainingPage} close={() => setTrainingPage(undefined)} />
+      )}
     </div>
   );
 }

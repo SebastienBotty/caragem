@@ -1509,6 +1509,138 @@ th {
   overflow: hidden;
   color: var(--ink);
 }
+.page-tour-launch {
+  position: fixed;
+  right: 24px;
+  bottom: 20px;
+  z-index: 30;
+  color: var(--blue);
+  box-shadow: 0 4px 20px #14284b20;
+}
+.workspace-footer {
+  margin-bottom: 60px;
+}
+.training-shell[open] {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  overflow: auto;
+  background: var(--bg);
+  color: var(--ink);
+}
+.training-banner {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 80;
+  padding: 10px 16px;
+  background: #234599;
+  color: white;
+  text-align: center;
+  font-size: 11px;
+}
+.training-shell .workspace {
+  padding-top: 36px;
+}
+.training-shell .sidebar {
+  top: 36px;
+  height: calc(100dvh - 36px);
+}
+.training-shell .main-content {
+  padding-bottom: 280px;
+}
+.training-shell .modal {
+  margin-right: 440px;
+  max-width: calc(100vw - 480px);
+}
+.training-shell .vehicle-drawer {
+  right: 440px;
+  width: min(620px, calc(100vw - 470px));
+}
+.training-coach {
+  position: fixed;
+  z-index: 100;
+  right: 16px;
+  bottom: 16px;
+  width: 390px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 70px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid #a9bce9;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 12px 45px #14284b30;
+  color: var(--ink);
+}
+.training-coach h2 {
+  font-size: 19px;
+  margin: 12px 0;
+}
+.training-coach p {
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+.training-coach progress {
+  width: 100%;
+  height: 5px;
+  accent-color: var(--blue);
+  display: block;
+  margin-bottom: 16px;
+}
+.training-coach .button {
+  margin-right: 8px;
+  margin-top: 6px;
+}
+.training-target {
+  outline: 3px solid #789cf7 !important;
+  outline-offset: 4px;
+}
+@media (max-width: 900px) {
+  .training-banner {
+    font-size: 9px;
+  }
+  .training-coach {
+    padding: 14px;
+    max-height: 225px;
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+  }
+  .training-coach h2 {
+    font-size: 16px;
+    margin: 8px 0;
+  }
+  .training-coach p {
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+  .training-shell .modal {
+    margin: auto;
+    max-width: calc(100vw - 24px);
+    padding-bottom: 255px;
+  }
+  .training-shell .vehicle-drawer {
+    right: 0;
+    width: 100vw;
+    overflow: auto;
+    padding-bottom: 255px;
+  }
+  .training-shell .drawer-inner {
+    height: auto;
+  }
+  .training-shell .drawer-content {
+    overflow: visible;
+    flex: none;
+  }
+}
 .onboarding-tour::backdrop {
   background: transparent;
 }

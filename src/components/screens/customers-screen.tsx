@@ -28,7 +28,7 @@ export function CustomersScreen({
           <p>{state.customers.length} clients et leur historique, au même endroit.</p>
         </div>
         {can('customers.manage') && (
-          <Button className="primary" onClick={() => setCreate(true)}>
+          <Button className="primary" data-tour="customer-create" onClick={() => setCreate(true)}>
             <Plus size={16} />
             Nouveau client
           </Button>

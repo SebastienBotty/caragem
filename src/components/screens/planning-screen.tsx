@@ -22,7 +22,11 @@ export function PlanningScreen({ selectVehicle }: { selectVehicle: (id: string) 
           <p>Rendez-vous à venir et restitutions prévues.</p>
         </div>
         {can('planning.manage') && (
-          <Button className="primary" onClick={() => setCreate(true)}>
+          <Button
+            className="primary"
+            data-tour="appointment-create"
+            onClick={() => setCreate(true)}
+          >
             <Plus size={16} />
             Nouveau rendez-vous
           </Button>

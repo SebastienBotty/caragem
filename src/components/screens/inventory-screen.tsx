@@ -23,11 +23,11 @@ export function InventoryScreen() {
         </div>
         {manage && (
           <div className="toolbar-actions">
-            <Button onClick={() => setDialog('order')}>
+            <Button data-tour="order-create" onClick={() => setDialog('order')}>
               <Truck size={16} />
               Enregistrer une commande
             </Button>
-            <Button className="primary" onClick={() => setDialog('part')}>
+            <Button className="primary" data-tour="part-create" onClick={() => setDialog('part')}>
               <Plus size={16} />
               Ajouter une pièce
             </Button>

@@ -35,7 +35,7 @@ export function DocumentsScreen({
           </p>
         </div>
         {can('documents.prepare') && (
-          <Button className="primary" onClick={() => setCreate(true)}>
+          <Button className="primary" data-tour="document-create" onClick={() => setCreate(true)}>
             <Plus size={16} />
             {kind === 'invoice' ? 'Nouvelle facture' : 'Nouveau devis'}
           </Button>

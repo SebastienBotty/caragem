@@ -6,7 +6,7 @@ import { useGarage } from '../provider';
 import { Badge, Button, Field, Form, Modal, cents, formatDate, value } from '../ui';
 
 export function DocumentDetail({ document, close }: { document: Document; close: () => void }) {
-  const { state, can, act } = useGarage();
+  const { state, can, act, training } = useGarage();
   const v = state.vehicles.find((v) => v.id === document.vehicleId)!;
   const customer = state.customers.find((c) => c.id === v.customerId)!;
   const t = totals(document.lines, document.taxRate);
@@ -95,7 +95,11 @@ export function DocumentDetail({ document, close }: { document: Document; close:
           </p>
         </div>
         <div className="modal-actions">
-          <a className="button" href={`/api/document/${document.id}`}>
+          <a
+            className="button"
+            aria-disabled={training}
+            href={training ? undefined : `/api/document/${document.id}`}
+          >
             <Download size={16} /> Télécharger le PDF
           </a>
           {can('documents.validate') && document.kind === 'estimate' && !document.accepted && (

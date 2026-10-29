@@ -91,7 +91,7 @@ export function onboardingSteps(state: GarageState, user: User) {
       page: 'settings',
       target: '[data-tour="content"]',
       title: 'Vous êtes prêt !',
-      text: 'Retrouvez les réglages du garage et de votre compte dans Paramètres. Pour revoir ces explications à tout moment, utilisez Visite guidée dans le menu.',
+      text: 'Retrouvez les réglages du garage et de votre compte dans Paramètres. La Visite guidée du menu relance ce parcours général. Le bouton en bas à droite de chaque onglet lance un entraînement interactif avec des données fictives.',
     },
   ];
   return steps.filter((step) => !step.permission || can(state, user, step.permission));

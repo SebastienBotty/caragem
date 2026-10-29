@@ -32,7 +32,7 @@ export function VehiclesScreen({
           <p>Retrouvez les visites en cours et les interventions passées.</p>
         </div>
         {can('vehicles.create') && (
-          <Button className="primary" onClick={() => setCreate(true)}>
+          <Button className="primary" data-tour="vehicle-create" onClick={() => setCreate(true)}>
             <Plus size={16} />
             Nouvelle arrivée
           </Button>

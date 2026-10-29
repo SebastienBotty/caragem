@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Plus, Copy, Check } from 'lucide-react';
-import { useGarage, request } from '../provider';
+import { useGarage } from '../provider';
 import { Avatar, Badge, Button, Field, Form, Modal, value } from '../ui';
 import {
   RolePermissionsDialog,
@@ -12,7 +12,7 @@ import { roleLabel } from '@/lib/permissions';
 import type { User } from '@/lib/domain';
 
 export function TeamScreen() {
-  const { state, user, can } = useGarage();
+  const { state, user, can, request } = useGarage();
   const [permissionsFor, setPermissionsFor] = useState<User | null>(null);
   const [roles, setRoles] = useState(false);
   const [roleFor, setRoleFor] = useState<User | null>(null);
@@ -45,10 +45,12 @@ export function TeamScreen() {
         </div>
         <div className="toolbar-actions">
           {user.role === 'owner' && (
-            <Button onClick={() => setRoles(true)}>Permissions des rôles</Button>
+            <Button data-tour="team-roles" onClick={() => setRoles(true)}>
+              Permissions des rôles
+            </Button>
           )}
           {can('team.invite') && (
-            <Button className="primary" onClick={() => setInvite(true)}>
+            <Button className="primary" data-tour="team-invite" onClick={() => setInvite(true)}>
               <Plus size={16} />
               Inviter un collaborateur
             </Button>
@@ -81,19 +83,25 @@ export function TeamScreen() {
                 </span>
               </div>
               {user.role === 'owner' && u.role !== 'owner' && (
-                <Button aria-label={`Attribuer un rôle à ${u.name}`} onClick={() => setRoleFor(u)}>
+                <Button
+                  data-tour="team-assign"
+                  aria-label={`Attribuer un rôle à ${u.name}`}
+                  onClick={() => setRoleFor(u)}
+                >
                   Attribuer un rôle
                 </Button>
               )}
               {user.role === 'owner' && u.role !== 'owner' && (
-                <Button onClick={() => setPermissionsFor(u)}>Permissions individuelles</Button>
+                <Button data-tour="team-permissions" onClick={() => setPermissionsFor(u)}>
+                  Permissions individuelles
+                </Button>
               )}
             </article>
           );
         })}
       </div>
       {can('team.invite') && (
-        <section className="data-panel settings-card">
+        <section className="data-panel settings-card" data-tour="team-pending">
           <h3>Invitations en attente</h3>
           <p>Les liens sont personnels et expirent après 7 jours.</p>
           {pending.length ? (

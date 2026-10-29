@@ -54,6 +54,8 @@ export async function request<T = Record<string, unknown>>(
   return data;
 }
 type Context = {
+  training?: boolean;
+  request: typeof request;
   onboardingSeen: boolean;
   state: GarageState;
   user: User;
@@ -68,6 +70,7 @@ type Context = {
   api: (path: string, body: unknown) => Promise<void>;
 };
 const Ctx = createContext<Context | null>(null);
+export { Ctx as GarageContext };
 export function useGarage() {
   const c = useContext(Ctx);
   if (!c) throw new Error('Garage non chargé');
@@ -135,6 +138,7 @@ export function GarageProvider({
   return (
     <Ctx.Provider
       value={{
+        request,
         onboardingSeen: initial.onboardingSeen ?? false,
         state,
         user,

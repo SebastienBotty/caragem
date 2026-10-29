@@ -2,14 +2,14 @@
 import { useState } from 'react';
 import { Settings2 } from 'lucide-react';
 import { stages } from '@/lib/domain';
-import { useGarage, request } from '../provider';
+import { useGarage } from '../provider';
 import { Badge, Button, Field, Form, value } from '../ui';
 import { Configure } from '../forms';
 import { GoogleSignIn } from '../google-sign-in';
 import { RolePermissionsDialog } from '../permissions-editor';
 
 export function SettingsScreen() {
-  const { state, user, account, refresh, notify, can } = useGarage();
+  const { state, user, account, refresh, notify, can, request, training } = useGarage();
   const [roles, setRoles] = useState(false);
   const [config, setConfig] = useState(false);
   const [googlePassword, setGooglePassword] = useState('');
@@ -54,6 +54,7 @@ export function SettingsScreen() {
                 avec vos propres données.
               </p>
               <Button
+                disabled={training}
                 onClick={async () => {
                   await request('logout', {});
                   await refresh();
