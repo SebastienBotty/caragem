@@ -12,6 +12,7 @@ import { actionSchema, log } from '../lib/domain.ts';
 import { createGoogleApi, googleConfiguration } from './google-auth.ts';
 import { requirePermission, visibleState } from '../lib/permissions.ts';
 import { broadcastGarage } from './realtime.ts';
+import { dataTransferApi } from './data-transfer-api.ts';
 import { vehiclePhotoApi } from './vehicle-photo-api.ts';
 const knownRoutes = new Set([
   '/api/session',
@@ -36,6 +37,10 @@ const knownRoutes = new Set([
   '/api/vehicle-photos',
   '/api/vehicle-photos/delete',
   '/api/send-mail',
+  '/api/data-transfer/export',
+  '/api/data-transfer/read',
+  '/api/data-transfer/preview',
+  '/api/data-transfer/import',
 ]);
 
 async function body(req: IncomingMessage, maxBytes = 128000) {
@@ -98,7 +103,18 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       // Read the complete request before taking any mutable garage snapshot.
       const inputBody =
         req.method === 'POST'
-          ? await body(req, path === '/api/vehicle-photos' ? 12 * 1024 * 1024 : 128000)
+          ? await body(
+              req,
+              path === '/api/vehicle-photos'
+                ? 12 * 1024 * 1024
+                : [
+                      '/api/data-transfer/preview',
+                      '/api/data-transfer/import',
+                      '/api/data-transfer/read',
+                    ].includes(path)
+                  ? 4 * 1024 * 1024
+                  : 128000,
+            )
           : undefined;
       session = await store.session(req.headers.cookie, req.headers['x-carm-demo-user']);
       if (await google(req, res, path, inputBody, session, send)) return true;
@@ -112,6 +128,8 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       const actor = s.users.find((u) => u.id === userId);
       if (!actor) throw new UserError('Session invalide.');
       if (await vehiclePhotoApi(store, io, req.method, path, inputBody, session, res)) return true;
+      if (await dataTransferApi(store, io, req, res, path, inputBody, session, s, send))
+        return true;
       if (req.method === 'POST' && path === '/api/actions') {
         const input = actionSchema.parse(inputBody);
         action = input.type;

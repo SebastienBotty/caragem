@@ -115,6 +115,10 @@ npm run db:import:sqlite -- --apply
 
 La première commande affiche uniquement les quantités à importer. `--source=chemin/ancienne.sqlite` permet de choisir une autre source. L’import n’a pas été appliqué automatiquement au nouveau projet Neon.
 
+## Import et export CSV et Excel
+
+Dans **Paramètres → Importer / exporter les données**, le responsable peut transférer les clients, véhicules et visites (avec tâches et notes), stocks, réservations de pièces, rendez-vous, commandes fournisseurs, devis et factures. Formats CSV, Excel XLS et XLSX, modèles vides, exemples remplis, structure des colonnes, aperçu et confirmation sont inclus. Un import invalide est annulé en totalité ; les données existantes ne sont pas écrasées. Formats et exemples : [guide du transfert](docs/csv-transfer.md). Limite d’import : 1 Mio / 5 000 lignes par fichier. Pour Excel, seule la première feuille est analysée ; les dates doivent être en texte ISO.
+
 ## Configuration
 
 Copier `.env.example` vers `.env` si nécessaire, puis renseigner `DATABASE_URL` avec la connexion PostgreSQL / Neon. Elle est lue uniquement au serveur. `APP_ORIGIN` doit être l’origine exacte utilisée par les navigateurs, par exemple `https://garage.example.com`, et `HOST=0.0.0.0` permet l’écoute réseau. En production, utiliser HTTPS : les cookies sont alors marqués Secure. Pour essayer sur téléphone, utiliser une origine réseau accessible et identique sur tous les appareils.

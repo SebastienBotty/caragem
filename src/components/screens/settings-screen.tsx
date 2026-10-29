@@ -7,10 +7,12 @@ import { Badge, Button, Field, Form, value } from '../ui';
 import { Configure } from '../forms';
 import { GoogleSignIn } from '../google-sign-in';
 import { RolePermissionsDialog } from '../permissions-editor';
+import { CsvTransfer } from '../csv-transfer';
 
 export function SettingsScreen() {
   const { state, user, account, refresh, notify, can, request, training } = useGarage();
   const [roles, setRoles] = useState(false);
+  const [transfer, setTransfer] = useState(false);
   const [config, setConfig] = useState(false);
   const [googlePassword, setGooglePassword] = useState('');
   return (
@@ -22,6 +24,17 @@ export function SettingsScreen() {
         </div>
       </div>
       <div className="settings-grid">
+        {user.role === 'owner' && !training && (
+          <section className="data-panel settings-card">
+            <h3>Importer / exporter les données</h3>
+            <p>
+              Clients, véhicules et visites, stock, réservations, rendez-vous, commandes, devis et
+              factures. Fichiers CSV et Excel, modèles et exemples, avec un aperçu avant
+              confirmation.
+            </p>
+            <Button onClick={() => setTransfer(true)}>Importer / exporter</Button>
+          </section>
+        )}
         <section className="data-panel settings-card">
           <span className="settings-icon">
             <Settings2 size={24} />
@@ -123,6 +136,9 @@ export function SettingsScreen() {
       </div>
       {config && can('garage.configure') && <Configure close={() => setConfig(false)} />}
       {roles && <RolePermissionsDialog close={() => setRoles(false)} />}
+      {transfer && user.role === 'owner' && !training && (
+        <CsvTransfer close={() => setTransfer(false)} />
+      )}
     </>
   );
 }
