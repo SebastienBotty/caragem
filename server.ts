@@ -16,6 +16,13 @@ await app.prepare();
 const handle = app.getRequestHandler();
 const store = new Store();
 await store.ready;
+await store.purgeExpiredDemos();
+const cleanupDemos = setInterval(() => {
+  void store
+    .purgeExpiredDemos()
+    .catch(() => securityEvent({ event: 'server.error', outcome: 'failure' }));
+}, 3600000);
+cleanupDemos.unref();
 const http = createServer(async (req, res) => {
   securityHeaders(res);
   try {
@@ -36,6 +43,7 @@ http.listen(port, hostname, () =>
   console.log(`CaRM prêt sur http://${hostname === '0.0.0.0' ? 'localhost' : hostname}:${port}`),
 );
 process.on('SIGTERM', async () => {
+  clearInterval(cleanupDemos);
   io.close();
   http.close();
   await store.close();

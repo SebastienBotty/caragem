@@ -119,16 +119,7 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
           CaRM<span className="brand-dot">.</span>
           <span className="brand-beta">BETA</span>
         </a>
-        <button
-          className="garage-switch"
-          onClick={() =>
-            state.demo
-              ? user.role === 'owner'
-                ? setConfigure(true)
-                : navigate('settings')
-              : setSwitchGarage(true)
-          }
-        >
+        <button className="garage-switch" onClick={() => setSwitchGarage(true)}>
           <span className="garage-avatar">G</span>
           <span>
             <strong>{state.settings.name}</strong>

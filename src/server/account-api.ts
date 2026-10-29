@@ -56,6 +56,7 @@ export async function accountApi(
                   name: account.name,
                   hasPassword: Boolean(account.hash),
                   googleLinked: account.googleLinked,
+                  demoExpires: account.demoExpires ?? undefined,
                 }
               : null,
             garages: account ? await store.garages(account.email) : [],
@@ -89,14 +90,21 @@ export async function accountApi(
     return true;
   }
   if (req.method === 'POST' && ['/api/demo', '/api/login', '/api/register'].includes(path)) {
+    if (path === '/api/demo' && !session?.email) {
+      send(401, { error: 'Connectez-vous à votre compte pour ouvrir la démonstration.' });
+      return true;
+    }
     if (!authAttemptAllowed(req.socket.remoteAddress)) {
       send(429, { error: 'Trop de tentatives. Réessayez dans 15 minutes.' });
       return true;
     }
     let target: { garageId: string; userId: string };
     if (path === '/api/demo') {
-      const state = await store.create(true);
-      target = { garageId: state.id, userId: state.users[0].id };
+      target = await store.createDemo(session!);
+      if (session?.garageId === target.garageId) {
+        send(200, { ok: true });
+        return true;
+      }
     } else {
       const input = credentials.parse(body);
       if (path === '/api/register') {

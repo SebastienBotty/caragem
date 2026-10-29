@@ -15,7 +15,6 @@ export function Auth({ done, notice = '' }: { done: () => Promise<void>; notice?
       ? (new URLSearchParams(window.location.search).get('email') ?? '')
       : '';
   const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('register');
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState(notice);
   return (
     <main className="auth-page">
@@ -90,7 +89,7 @@ export function Auth({ done, notice = '' }: { done: () => Promise<void>; notice?
           </h2>
           <p>
             {mode === 'welcome'
-              ? 'Prenez les commandes d’un garage de démonstration. Aucun compte nécessaire.'
+              ? 'Connectez-vous, puis ouvrez votre garage de démonstration depuis Mes garages. Il reste disponible pendant 24 h.'
               : mode === 'login'
                 ? 'Retrouvez votre garage et votre équipe.'
                 : invitation
@@ -110,22 +109,8 @@ export function Auth({ done, notice = '' }: { done: () => Promise<void>; notice?
           )}
           {mode === 'welcome' ? (
             <>
-              <Button
-                className="primary large"
-                busy={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    await request('demo', {});
-                    await done();
-                  } catch (e) {
-                    setError((e as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                Explorer le garage de démonstration
+              <Button className="primary large" onClick={() => setMode('login')}>
+                Se connecter pour essayer la démonstration
                 <ArrowUpRight size={18} />
               </Button>
               <div className="auth-or">
@@ -208,7 +193,7 @@ export function Auth({ done, notice = '' }: { done: () => Promise<void>; notice?
                 {mode === 'login' ? 'Créer un compte' : 'J’ai déjà un compte'}
               </button>
               <button type="button" className="text-button" onClick={() => setMode('welcome')}>
-                Essayer la démonstration sans compte
+                Découvrir la démonstration (compte requis)
               </button>
             </Form>
           )}

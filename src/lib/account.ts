@@ -4,6 +4,7 @@ export type AccountSummary = {
   name: string;
   hasPassword: boolean;
   googleLinked: boolean;
+  demoExpires?: number;
 };
 export type GarageAccess = { id: string; name: string; userId: string; role: User['role'] };
 export type SessionData = {

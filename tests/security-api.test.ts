@@ -46,6 +46,65 @@ test('HTTP responses prohibit framing without restricting application scripts or
   assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');
 });
 
+test('demos require an account, are unique for 24h and cannot send real invitations', async (t) => {
+  const { store, post, base } = await apiServer(t);
+  assert.equal((await post('demo', {})).status, 401);
+  const hash = await passwordHash('a demo account password');
+  const owner = await store.register({
+    email: 'demo@example.test',
+    hash,
+    name: 'Demo',
+    garage: 'Personal',
+  });
+  const cookie = `carm_session=${await store.newSession(owner.garageId, owner.userId)}`;
+  const first = await post('demo', {}, cookie);
+  assert.equal(first.status, 200);
+  const demoCookie = first.headers.get('set-cookie')!.split(';')[0];
+  const firstSession = (await store.session(demoCookie))!;
+  assert.equal(firstSession.email, 'demo@example.test');
+  const state = await store.get(firstSession.garageId);
+  assert.equal(state.demo, true);
+  const expires = (state as typeof state & { demoExpires: number }).demoExpires;
+  assert.ok(expires > Date.now() + 23.9 * 3600000 && expires <= Date.now() + 86400000);
+  assert.equal(firstSession.expires, expires);
+  const responses = await Promise.all([post('demo', {}, demoCookie), post('demo', {}, demoCookie)]);
+  for (const response of responses) {
+    assert.equal(response.status, 200);
+    const current = (await store.session(
+      response.headers.get('set-cookie')?.split(';')[0] ?? demoCookie,
+    ))!;
+    assert.equal(current.garageId, state.id);
+    assert.equal(current.expires, expires);
+  }
+  const currentCookie = responses[0].headers.get('set-cookie')?.split(';')[0] ?? demoCookie;
+  assert.equal(
+    (await post('invite', { email: 'escape@example.test', role: 'mechanic' }, currentCookie))
+      .status,
+    400,
+  );
+  await store.db.query(
+    "UPDATE garages SET state=jsonb_set(state,'{demoExpires}',to_jsonb($2::bigint)) WHERE id=$1",
+    [state.id, Date.now() - 1],
+  );
+  await store.db.query('UPDATE accounts SET demo_expires=$1 WHERE email=$2', [
+    Date.now() - 1,
+    'demo@example.test',
+  ]);
+  const expired = await fetch(base + '/api/session', { headers: { Cookie: currentCookie } });
+  assert.equal((await expired.json()).state, null);
+  const personalCookie = `carm_session=${await store.newSession(owner.garageId, owner.userId)}`;
+  const replacement = await post('demo', {}, personalCookie);
+  assert.equal(replacement.status, 400);
+  assert.match((await replacement.json()).error, /essai.*terminé/);
+  assert.equal((await store.get(owner.garageId)).settings.name, 'Personal');
+  const count = await store.db.query(
+    'SELECT count(*)::int AS n FROM garages WHERE demo_account_email=$1',
+    ['demo@example.test'],
+  );
+  assert.equal(count.rows[0].n, 0);
+  assert.ok((await store.account('demo@example.test'))!.demoExpires! < Date.now());
+});
+
 test('security events record authentication and internal failures without credentials or query tokens', async (t) => {
   const logs: string[] = [];
   t.mock.method(console, 'info', (value: string) => logs.push(value));

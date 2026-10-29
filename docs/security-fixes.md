@@ -1,5 +1,21 @@
 # Corrections de l’audit de sécurité du 29 octobre 2026
 
+Huit points traités dans l’application ; SEC-02 est différé à la demande de l’utilisateur. Le choix de l’hébergement déterminera la configuration du proxy, le partage des compteurs entre instances et la collecte durable des journaux.
+
+| Point                     | État                                                    |
+| ------------------------- | ------------------------------------------------------- |
+| SEC-01 Invitations        | Corrigé, contrôles à l’émission et à l’acceptation      |
+| SEC-02 Proxy              | Différé sur demande                                     |
+| SEC-03 Ressources         | Démo unique sur compte, expiration/purge et quotas      |
+| SEC-04 Réauthentification | Quota par compte commun aux sessions                    |
+| SEC-05 Mots de passe      | Scrypt renforcé, migration compatible                   |
+| SEC-06 Erreurs            | Messages internes masqués                               |
+| SEC-07 Journaux           | Événements JSON ; collecte à configurer à l’hébergement |
+| SEC-08 Iframes            | En-têtes appliqués au HTML et à l’API                   |
+| SEC-09 SMTP               | TLS obligatoire, certificats vérifiés                   |
+
+Vérification finale : 60 tests réussis, TypeScript et build de production réussis ; `npm audit` ne signale aucune vulnérabilité connue sur les 171 dépendances comptabilisées. Un test Chrome du parcours de démo utilise un schéma PostgreSQL temporaire et aucun service Google/SMTP réel. Les scénarios de reproduction et captures locaux sont dans `test-results/`, exclus de Git.
+
 ## SEC-01 — Invitations
 
 Un membre peut uniquement inviter vers un rôle dont toutes les permissions effectives sont comprises dans les siennes. Le contrôle est répété à l’acceptation, avec les permissions et le rôle actuels, sous verrou transactionnel du garage. Le propriétaire conserve la capacité d’inviter vers tous les rôles non propriétaires.
@@ -51,3 +67,13 @@ Une liste explicite de champs exclut corps de requête, email, mot de passe, coo
 Les événements sont écrits sur stdout : le superviseur d’hébergement devra les collecter dans un stockage réservé aux exploitants, avec une rétention de 90 jours et rotation, sans les publier ni les mélanger aux fichiers web. La collecte durable, les accès et alertes restent à configurer lorsque l’hébergement sera choisi.
 
 Validation : tests des événements d’échec de connexion, corrélation des erreurs internes, absence de secrets et tests HTTP/OAuth/socket existants.
+
+## SEC-03 — Démo liée au compte et limites de stockage
+
+La démo exige désormais un compte personnel connecté. Depuis **Mes garages**, le compte ouvre ou retrouve un seul garage de démonstration, y compris depuis un autre navigateur. L’essai unique de 24 h commence à la création et n’est prolongé ni par une nouvelle ouverture ni par une nouvelle session. Une contrainte unique en base et un verrou du compte protègent les créations concurrentes. L’échéance est conservée dans le compte après la purge : une nouvelle démo est refusée lorsque l’essai est terminé.
+
+Les sessions de démo expirent au plus tard avec le garage ; les lectures et mutations d’un garage expiré sont refusées. La purge transactionnelle s’exécute au démarrage et toutes les heures, ainsi qu’avant l’ouverture d’une démo. Elle supprime uniquement les garages marqués `demo=true` expirés et leurs sessions, invitations et appartenances, jamais les comptes ou garages personnels. Pour les anciennes démos sans date d’expiration, les 24 h sont calculées depuis leur date de création. Les invitations réelles sont désactivées dans les nouvelles démos.
+
+La création est limitée à 10 garages personnels possédés par compte (les appartenances à d’autres garages et la démo ne consomment pas ce quota). Un état de garage ne peut pas dépasser 10 Mio sérialisés : une mutation trop volumineuse est refusée avant d’écraser les données. Les installations possédant déjà un garage plus volumineux devront prévoir son archivage avant de pouvoir ajouter des données.
+
+Validation : tests HTTP de compte obligatoire, réouverture concurrente sans prolongation, expiration et refus de renouvellement sans supprimer le garage personnel ; quotas de création sous concurrence ; dépassement de taille sans écrasement ; tests HTTP/socket/PDF existants adaptés au compte obligatoire. Parcours Chrome réel : connexion, ouverture, échéance visible, retour au garage personnel et réouverture du même garage ; en-têtes HTML vérifiés et aucune erreur JavaScript.

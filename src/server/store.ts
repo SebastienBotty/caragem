@@ -47,6 +47,7 @@ type Account = {
   name: string;
   googleLinked: boolean;
   onboardingSeen: boolean;
+  demoExpires?: number;
 };
 export type GoogleProfile = { sub: string; email: string; name: string; emailVerified: boolean };
 export type GoogleAuthRequest = {
@@ -87,6 +88,7 @@ export class Store {
   async create(demo: boolean) {
     await this.ready;
     const state = createSeed(uid(), demo);
+    if (demo) state.demoExpires = Date.now() + 86400000;
     if (!demo) {
       state.settings.address = '';
       state.settings.name = 'Mon garage';
@@ -96,19 +98,29 @@ export class Store {
   }
   async get(id: string, sql: Sql = this.db, lock = false): Promise<GarageState> {
     await this.ready;
-    const [row] = await this.rows<{ state: GarageState }>(
-      `SELECT state FROM garages WHERE id=$1${lock ? ' FOR UPDATE' : ''}`,
+    const [row] = await this.rows<{ state: GarageState; created: number }>(
+      `SELECT state, extract(epoch FROM created_at)*1000 AS created FROM garages WHERE id=$1${lock ? ' FOR UPDATE' : ''}`,
       [id],
       sql,
     );
     if (!row) throw new UserError('Garage introuvable.');
+    if (row.state.demo) {
+      row.state.demoExpires ??= Math.floor(Number(row.created)) + 86400000;
+      if (row.state.demoExpires <= Date.now())
+        throw new UserError('Le garage de démonstration a expiré.');
+    }
     return row.state;
   }
   async save(state: GarageState, sql: Sql = this.db) {
     await this.ready;
+    const serialized = JSON.stringify(state);
+    if (Buffer.byteLength(serialized) > 10 * 1024 * 1024)
+      throw new UserError(
+        'Le garage atteint la limite de 10 Mio. Contactez le responsable de l’hébergement.',
+      );
     await sql.query(
       'INSERT INTO garages(id,state) VALUES($1,$2::jsonb) ON CONFLICT(id) DO UPDATE SET state=excluded.state',
-      [state.id, JSON.stringify(state)],
+      [state.id, serialized],
     );
   }
   async updateGarage<T>(id: string, change: (state: GarageState, sql: Sql) => T | Promise<T>) {
@@ -136,7 +148,7 @@ export class Store {
     await this.ready;
     return (
       await this.rows<Account>(
-        'SELECT email,hash,name,onboarding_seen AS "onboardingSeen",EXISTS(SELECT 1 FROM google_identities g WHERE g.email=accounts.email) AS "googleLinked" FROM accounts WHERE email=$1',
+        'SELECT email,hash,name,onboarding_seen AS "onboardingSeen",demo_expires::float8 AS "demoExpires",EXISTS(SELECT 1 FROM google_identities g WHERE g.email=accounts.email) AS "googleLinked" FROM accounts WHERE email=$1',
         [email.toLowerCase()],
         sql,
       )
@@ -157,11 +169,18 @@ export class Store {
   async garages(email: string): Promise<GarageAccess[]> {
     await this.ready;
     return this.rows<GarageAccess>(
-      `SELECT g.id, g.state->'settings'->>'name' AS name, m.user_id AS "userId", m.role FROM memberships m JOIN garages g ON g.id=m.garage_id WHERE m.email=$1 ORDER BY g.created_at,g.id`,
-      [email],
+      `SELECT g.id, g.state->'settings'->>'name' AS name, m.user_id AS "userId", m.role FROM memberships m JOIN garages g ON g.id=m.garage_id WHERE m.email=$1 AND (g.state->>'demo'<>'true' OR COALESCE((g.state->>'demoExpires')::bigint, floor(extract(epoch FROM g.created_at)*1000)::bigint+86400000)>$2) ORDER BY g.created_at,g.id`,
+      [email, Date.now()],
     );
   }
   private async createOwned(sql: Sql, email: string, garageName: string) {
+    await sql.query('SELECT email FROM accounts WHERE email=$1 FOR UPDATE', [email]);
+    const [{ count }] = await this.rows<{ count: number }>(
+      "SELECT count(*)::int AS count FROM memberships m JOIN garages g ON g.id=m.garage_id WHERE m.email=$1 AND m.role='owner' AND g.state->>'demo'='false'",
+      [email],
+      sql,
+    );
+    if (count >= 10) throw new UserError('La limite de 10 garages personnels est atteinte.');
     const account = await this.account(email, sql);
     if (!account) throw new UserError('Compte introuvable.');
     const state = createSeed(uid(), false);
@@ -200,6 +219,66 @@ export class Store {
   async createGarage(session: Session, name: string) {
     if (!session.email) throw new UserError('Créez un compte personnel pour créer un garage.');
     return this.atomic((sql) => this.createOwned(sql, session.email!, name));
+  }
+  async createDemo(session: Session) {
+    if (!session.email)
+      throw new UserError('Connectez-vous à votre compte pour ouvrir la démonstration.');
+    await this.purgeExpiredDemos();
+    return this.atomic(async (sql) => {
+      const [account] = await this.rows<{ expires: number | null }>(
+        'SELECT demo_expires::float8 AS expires FROM accounts WHERE email=$1 FOR UPDATE',
+        [session.email],
+        sql,
+      );
+      if (!account) throw new UserError('Compte introuvable.');
+      if (account.expires !== null && account.expires <= Date.now())
+        throw new UserError('Votre essai de démonstration de 24 h est terminé.');
+      const [existing] = await this.rows<{ id: string }>(
+        'SELECT id FROM garages WHERE demo_account_email=$1',
+        [session.email],
+        sql,
+      );
+      if (existing) {
+        const state = await this.get(existing.id, sql);
+        return { garageId: state.id, userId: state.users[0].id };
+      }
+      const state = createSeed(uid(), true);
+      state.demoExpires = account.expires ?? Date.now() + 86400000;
+      state.settings.name = 'Garage de démonstration';
+      await this.save(state, sql);
+      await sql.query('UPDATE garages SET demo_account_email=$1 WHERE id=$2', [
+        session.email,
+        state.id,
+      ]);
+      await sql.query('UPDATE accounts SET demo_expires=$1 WHERE email=$2', [
+        state.demoExpires,
+        session.email,
+      ]);
+      await sql.query('INSERT INTO memberships(email,garage_id,user_id,role) VALUES($1,$2,$3,$4)', [
+        session.email,
+        state.id,
+        state.users[0].id,
+        'owner',
+      ]);
+      return { garageId: state.id, userId: state.users[0].id };
+    });
+  }
+  async purgeExpiredDemos() {
+    return this.atomic(async (sql) => {
+      const expired = await this.rows<{ id: string }>(
+        "SELECT id FROM garages WHERE state->>'demo'='true' AND COALESCE((state->>'demoExpires')::bigint, (extract(epoch FROM created_at)*1000)::bigint+86400000)<=$1 FOR UPDATE",
+        [Date.now()],
+        sql,
+      );
+      if (!expired.length) return;
+      const ids = expired.map((row) => row.id);
+      await sql.query('DELETE FROM sessions WHERE garage_id=ANY($1::text[])', [ids]);
+      await sql.query('DELETE FROM invitations WHERE garage_id=ANY($1::text[])', [ids]);
+      await sql.query('DELETE FROM memberships WHERE garage_id=ANY($1::text[])', [ids]);
+      await sql.query("DELETE FROM garages WHERE id=ANY($1::text[]) AND state->>'demo'='true'", [
+        ids,
+      ]);
+    });
   }
   async saveGoogleRequest(state: string, browser: string, payload: GoogleAuthRequest) {
     await this.ready;
@@ -359,7 +438,13 @@ export class Store {
     // ASVS 7.2.2: only a hash of the session secret is persisted.
     await this.db.query(
       'INSERT INTO sessions(token_hash,garage_id,user_id,account_email,expires) VALUES($1,$2,$3,$4,$5)',
-      [digest(token), garageId, userId, membership?.email ?? null, Date.now() + 7 * 86400000],
+      [
+        digest(token),
+        garageId,
+        userId,
+        membership?.email ?? null,
+        Math.min(Date.now() + 7 * 86400000, state.demo ? state.demoExpires! : Infinity),
+      ],
     );
     return token;
   }
@@ -373,10 +458,10 @@ export class Store {
       user_id: string;
       account_email: string | null;
       expires: number;
-    }>('SELECT *, expires::float8 AS expires FROM sessions WHERE token_hash=$1 AND expires>$2', [
-      digest(token),
-      Date.now(),
-    ]);
+    }>(
+      "SELECT s.*, s.expires::float8 AS expires FROM sessions s JOIN garages g ON g.id=s.garage_id WHERE s.token_hash=$1 AND s.expires>$2 AND (g.state->>'demo'<>'true' OR COALESCE((g.state->>'demoExpires')::bigint, (extract(epoch FROM g.created_at)*1000)::bigint+86400000)>$2)",
+      [digest(token), Date.now()],
+    );
     if (!row) return;
     const state = await this.get(row.garage_id);
     let userId = row.user_id;
@@ -401,7 +486,7 @@ export class Store {
       garageId: row.garage_id,
       userId,
       email: row.account_email ?? undefined,
-      expires: row.expires,
+      expires: Math.min(row.expires, state.demo ? state.demoExpires! : Infinity),
       tokenHash: row.token_hash,
     };
   }
@@ -414,6 +499,8 @@ export class Store {
   async invite(session: Session, email: string, role: User['role'], customRoleId?: string) {
     return this.atomic(async (sql) => {
       const state = await this.get(session.garageId, sql, true);
+      if (state.demo && session.email)
+        throw new UserError('Les invitations réelles sont désactivées dans la démonstration.');
       role = this.invitationRole(state, session.userId, role, customRoleId).role;
       email = email.toLowerCase();
       if (

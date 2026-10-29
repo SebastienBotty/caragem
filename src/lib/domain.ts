@@ -145,6 +145,7 @@ export type Appointment = {
 export type GarageState = {
   id: string;
   demo: boolean;
+  demoExpires?: number;
   revision: number;
   settings: {
     name: string;

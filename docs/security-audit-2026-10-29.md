@@ -1,5 +1,7 @@
 # Audit de sécurité CaRM — 29 octobre 2026
 
+> Rapport initial conservé comme historique. Les corrections et leurs vérifications sont décrites dans [security-fixes.md](security-fixes.md). Le traitement du proxy (SEC-02) reste différé à la demande de l’utilisateur.
+
 ## Synthèse
 
 L’audit local identifie **un risque élevé, six risques moyens et deux risques faibles**. Le risque prioritaire est une délégation excessive des invitations : un membre disposant de `team.invite` peut inviter un compte avec un rôle plus puissant que le sien. Le scénario a été reproduit avec l’API et une base PostgreSQL de test isolée.

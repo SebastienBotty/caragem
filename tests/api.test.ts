@@ -72,9 +72,21 @@ test(
     try {
       assert.equal((await post('demo', {}, '', 'https://foreign.example')).status, 403);
       assert.equal((await post('actions', { type: 'note' })).status, 401);
-      const resA = await post('demo', {});
+      const accountA = await post('register', {
+        name: 'Demo A',
+        email: 'demo-a@example.test',
+        garage: 'Personal A',
+        password: 'a strong demo password',
+      });
+      const accountB = await post('register', {
+        name: 'Demo B',
+        email: 'demo-b@example.test',
+        garage: 'Personal B',
+        password: 'a strong demo password',
+      });
+      const resA = await post('demo', {}, accountA.headers.get('set-cookie')!.split(';')[0]);
       const cookieA = resA.headers.get('set-cookie')!.split(';')[0];
-      const resB = await post('demo', {});
+      const resB = await post('demo', {}, accountB.headers.get('set-cookie')!.split(';')[0]);
       const cookieB = resB.headers.get('set-cookie')!.split(';')[0];
       const a = await session(cookieA);
       const b = await session(cookieB);

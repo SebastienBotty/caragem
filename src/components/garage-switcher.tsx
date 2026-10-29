@@ -5,7 +5,8 @@ import { request, useGarage } from './provider';
 import { Badge, Button, Field, Form, Modal, value } from './ui';
 
 export function GarageSwitcher({ close }: { close: () => void }) {
-  const { state, garages, refresh } = useGarage();
+  const { state, garages, refresh, account } = useGarage();
+  const demoExpired = account?.demoExpires !== undefined && account.demoExpires <= Date.now();
   const [create, setCreate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -48,6 +49,31 @@ export function GarageSwitcher({ close }: { close: () => void }) {
           </button>
         ))}
       </div>
+      <Button
+        disabled={busy || state.demo || demoExpired}
+        onClick={async () => {
+          setBusy(true);
+          setError('');
+          try {
+            await request('demo', {});
+            await refresh();
+            close();
+          } catch (e) {
+            setError((e as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {state.demo
+          ? 'Démonstration en cours'
+          : demoExpired
+            ? 'Essai de démonstration terminé'
+            : 'Ouvrir ma démonstration (24 h)'}
+      </Button>
+      {state.demo && state.demoExpires && (
+        <p className="muted">Expiration : {new Date(state.demoExpires).toLocaleString('fr-FR')}.</p>
+      )}
       {!create ? (
         <Button onClick={() => setCreate(true)}>
           <Plus size={16} />

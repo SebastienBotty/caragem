@@ -14,7 +14,7 @@ npm run dev
 
 Ouvrir http://localhost:3000 pour créer son compte et son premier garage vide. Le bouton portant le nom du garage permet ensuite de changer de garage ou d’en créer un autre. Le même compte peut être responsable dans un garage et mécanicien dans un autre.
 
-Dans **Équipe**, le responsable crée un lien d’invitation personnel à transmettre au collaborateur. Le destinataire crée son compte ou se connecte à son compte existant, puis rejoint le garage. Les liens expirent après 7 jours, sont utilisables une seule fois et peuvent être révoqués. La démonstration reste accessible sans compte ; elle est isolée des garages personnels et n’envoie aucun mail réel.
+Dans **Équipe**, le responsable crée un lien d’invitation personnel à transmettre au collaborateur. Le destinataire crée son compte ou se connecte à son compte existant, puis rejoint le garage. Les liens expirent après 7 jours, sont utilisables une seule fois et peuvent être révoqués. La démonstration nécessite un compte connecté et s’ouvre depuis **Mes garages** : un seul garage de démo par compte, pendant 24 h sans prolongation à la réouverture. Elle est isolée des garages personnels, puis supprimée automatiquement ; elle n’envoie aucun mail réel ni invitation réelle. Voir [les corrections de sécurité](docs/security-fixes.md) pour les quotas et les conditions de déploiement.
 
 ### Visite guidée
 
