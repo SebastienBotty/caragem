@@ -5,6 +5,7 @@ import { useGarage } from '../provider';
 import { Field, Form, Modal, localDateInput, value } from '../ui';
 import { CustomerForm } from './customer-form';
 import { customerVehicles } from '@/lib/customer-vehicles';
+import { VehicleModelFields } from './vehicle-model-fields';
 
 export function AppointmentForm({ close }: { close: () => void }) {
   const { state, act, can } = useGarage();
@@ -22,7 +23,7 @@ export function AppointmentForm({ close }: { close: () => void }) {
             await act({
               type: 'appointment',
               customerId: value(f, 'customerId'),
-              model: value(f, 'model'),
+              model: selected?.model ?? `${value(f, 'brand')} ${value(f, 'model')}`.trim(),
               plate: value(f, 'plate'),
               reason: value(f, 'reason'),
               at: new Date(value(f, 'at')).toISOString(),
@@ -75,16 +76,7 @@ export function AppointmentForm({ close }: { close: () => void }) {
           )}
           {enteringVehicle && (
             <div className="form-grid" key={`${customerId}:${selected?.id ?? 'new'}`}>
-              <Field label="Véhicule">
-                <input
-                  name="model"
-                  required
-                  maxLength={200}
-                  placeholder="Renault Mégane"
-                  defaultValue={selected?.model ?? ''}
-                  readOnly={Boolean(selected)}
-                />
-              </Field>
+              <VehicleModelFields model={selected?.model} />
               <Field label="Immatriculation">
                 <input
                   name="plate"

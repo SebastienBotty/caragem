@@ -78,6 +78,7 @@ Il faut arrêter le serveur de développement avant de démarrer la production s
 - Clients, dossiers véhicules, visites successives et historique, notes et journal d’activité.
 - Tâches avec plusieurs intervenants, attribution par le responsable ou prise d’une tâche disponible, suivi du temps saisi manuellement.
 - Rendez-vous, enregistrement de l’arrivée et restitutions prévues.
+- Nouveaux véhicules : marque choisie dans une liste alphabétique, modèle saisi librement, dans les arrivées comme dans les rendez-vous. « Autre marque » permet de renseigner une marque absente. Les libellés des véhicules existants sont conservés.
 - Pièces, stock disponible/réservé, montage, libération et ajustements justifiés.
 - Commandes fournisseurs enregistrées et réceptions partielles.
 - Devis, accord client enregistré, conversion en facture, paiements suivis, PDF téléchargeables. **Ce sont des brouillons de travail, pas une solution de facturation certifiée.**
@@ -85,6 +86,8 @@ Il faut arrêter le serveur de développement avant de démarrer la production s
 - Synchronisation Socket.IO entre les sessions du même garage. Les actions sont validées au serveur ; les clients n’envoient pas un état complet à écraser.
 
 Les données sont conservées dans PostgreSQL, compatible Neon. `accounts`, `memberships`, `sessions` et `invitations` sont des tables relationnelles ; chaque garage conserve ses dossiers métier en JSONB dans `garages`. Les mutations d’un garage verrouillent sa ligne dans une transaction pour préserver les mises à jour concurrentes. Le schéma est dans `src/server/schema.sql`.
+
+Le catalogue de marques est maintenu dans `src/lib/vehicle-makes.ts`. Il couvre des marques actuelles et historiques du marché européen, avec les immatriculations par marque du [VDIK](https://www.vdik.de/en/topics/automotive-market/passenger-car-market/) et du [SMMT](https://www.smmt.co.uk/vehicle-data/car-registrations/) comme références consultées le 29 octobre 2026. La disponibilité varie selon les pays et les nouvelles commercialisations ; « Autre marque » évite de bloquer une saisie absente de la liste. Le catalogue est indépendant des logos 3D disponibles.
 
 ### Import de l’ancienne base SQLite
 

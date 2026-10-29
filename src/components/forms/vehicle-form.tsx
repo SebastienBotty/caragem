@@ -5,6 +5,7 @@ import { useGarage } from '../provider';
 import { Field, Form, Modal, localDateInput, number, value } from '../ui';
 import { CustomerForm } from './customer-form';
 import { customerVehicles } from '@/lib/customer-vehicles';
+import { VehicleModelFields } from './vehicle-model-fields';
 export function VehicleForm({
   close,
   initialCustomerId = '',
@@ -35,7 +36,7 @@ export function VehicleForm({
               type: 'vehicle',
               customerId: value(f, 'customerId'),
               existingVehicleId: selected?.id,
-              model: value(f, 'model'),
+              model: selected?.model ?? `${value(f, 'brand')} ${value(f, 'model')}`.trim(),
               plate: value(f, 'plate'),
               mileage: number(f, 'mileage'),
               issue: value(f, 'issue'),
@@ -107,16 +108,7 @@ export function VehicleForm({
                     readOnly={Boolean(selected)}
                   />
                 </Field>
-                <Field label="Marque et modèle">
-                  <input
-                    name="model"
-                    required
-                    maxLength={200}
-                    placeholder="Peugeot 308"
-                    defaultValue={selected?.model ?? ''}
-                    readOnly={Boolean(selected)}
-                  />
-                </Field>
+                <VehicleModelFields model={selected?.model} />
               </div>
               <div className="form-grid">
                 <Field label="Kilométrage">
