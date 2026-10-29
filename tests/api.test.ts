@@ -292,6 +292,7 @@ test(
       process.env.SMTP_HOST = 'mock.test';
       process.env.SMTP_FROM = 'garage@example.com';
       let sends = 0;
+      let requiresTls = false;
       let releaseDelivery: () => void = () => {};
       let deliveryStarted: () => void = () => {};
       const started = new Promise<void>((resolve) => {
@@ -301,13 +302,16 @@ test(
         releaseDelivery = resolve;
       });
       Object.assign(nodemailer, {
-        createTransport: () => ({
-          sendMail: async () => {
-            sends++;
-            deliveryStarted();
-            await delivery;
-          },
-        }),
+        createTransport: (options: { requireTLS?: boolean }) => {
+          requiresTls = options.requireTLS === true;
+          return {
+            sendMail: async () => {
+              sends++;
+              deliveryStarted();
+              await delivery;
+            },
+          };
+        },
       });
       const payload = JSON.stringify({ id: a.state.mails[0].id });
       const delayed = httpRequest(base + '/api/send-mail', {
@@ -347,6 +351,7 @@ test(
       releaseDelivery();
       assert.equal(await response, 200);
       assert.equal(sends, 1);
+      assert.equal(requiresTls, true, 'SMTP must never silently send without TLS');
       assert.equal(
         (await session(mailCookie)).state.vehicles[0].notes[0].text,
         'Committed while mail body is incomplete',

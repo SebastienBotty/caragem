@@ -35,3 +35,9 @@ Validation : régression HTTP multi-session et multi-compte, expiration avec hor
 Le serveur applique `Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'`, `X-Frame-Options: DENY` et `X-Content-Type-Options: nosniff` aux réponses HTML et API. Les scripts Next.js et le rendu WebGL ne sont pas restreints par une politique de scripts ajoutée arbitrairement.
 
 Validation : vérification des vrais en-têtes HTTP dans `tests/security-api.test.ts`. Les réponses du frontal de production resteront à contrôler après déploiement.
+
+## SEC-09 — Chiffrement SMTP obligatoire
+
+Le transport exige TLS : connexion implicite sur le port 465, ou STARTTLS obligatoire sur les autres ports. TLS 1.2 minimum et vérification des certificats sont explicites. Un serveur sans STARTTLS provoque un échec d’envoi ; le brouillon est conservé. Aucun contournement en clair n’est activé.
+
+Validation : le test HTTP/PDF/mail existant vérifie les options réellement transmises au transport simulé. Aucun email réel n’est envoyé ; le certificat et la disponibilité du futur serveur SMTP restent à vérifier.
