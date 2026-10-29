@@ -23,6 +23,7 @@ import { DocumentDetail, DocumentForm } from './documents';
 import { ReturnVisit } from './forms';
 import { VehicleColor } from './vehicle-color';
 import { VehicleBlocker } from './vehicle-blocker';
+import { VehiclePhotos } from './vehicle-photos';
 
 export function VehicleDrawer({ id, close }: { id: string; close: () => void }) {
   const { state, can, act, notify } = useGarage();
@@ -133,6 +134,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
             {[
               ['work', 'Travaux'],
               ['notes', 'Notes'],
+              ['photos', 'Photos'],
               ['parts', 'Pièces'],
               ['docs', 'Documents'],
               ['history', 'Historique'],
@@ -158,6 +160,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
               ))}
           </div>
           <div className="drawer-content">
+            {tab === 'photos' && <VehiclePhotos vehicle={v} />}
             {tab === 'work' && (
               <>
                 <div className="drawer-section-title">

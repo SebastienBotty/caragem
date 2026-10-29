@@ -30,3 +30,9 @@ CREATE TABLE IF NOT EXISTS invitations (
 );
 ALTER TABLE invitations ADD COLUMN IF NOT EXISTS custom_role_id TEXT;
 ALTER TABLE invitations ADD COLUMN IF NOT EXISTS inviter_id TEXT;
+CREATE TABLE IF NOT EXISTS vehicle_photos (
+  id TEXT PRIMARY KEY,
+  garage_id TEXT NOT NULL REFERENCES garages(id) ON DELETE CASCADE,
+  image BYTEA NOT NULL
+);
+CREATE INDEX IF NOT EXISTS vehicle_photos_garage ON vehicle_photos(garage_id);

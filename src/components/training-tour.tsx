@@ -6,6 +6,7 @@ import { AppShell } from './app-shell';
 import { GarageContext, type request as realRequest } from './provider';
 import { Button } from './ui';
 import { uid, type Action, type GarageState } from '@/lib/domain';
+import { photoUploadSchema } from '@/lib/vehicle-photos';
 import {
   applyTrainingAction,
   createTraining,
@@ -25,6 +26,7 @@ export function TrainingTour({ page, close }: { page: string; close: () => void 
   const currentState = useRef(state);
   const [index, setIndex] = useState(0);
   const progress = useRef(0);
+  const photoImages = useRef(new Map<string, string>());
   const [message, setMessage] = useState('');
   const root = useRef<HTMLDialogElement>(null);
   const [portal, setPortal] = useState<HTMLElement | null>(null);
@@ -55,6 +57,11 @@ export function TrainingTour({ page, close }: { page: string; close: () => void 
     return next;
   };
   const request: typeof realRequest = async <T,>(path: string, body?: unknown): Promise<T> => {
+    if (path.startsWith('vehicle-photos/')) {
+      const image = photoImages.current.get(path.slice('vehicle-photos/'.length));
+      if (!image) throw new Error('Photo fictive introuvable.');
+      return { image } as T;
+    }
     if (path === 'invitations')
       return { invitations: invitation.current ? [invitation.current] : [] } as T;
     if (path === 'invite') {
@@ -76,6 +83,34 @@ export function TrainingTour({ page, close }: { page: string; close: () => void 
     throw new Error('Cette opération n’est pas disponible dans l’entraînement.');
   };
   const api = async (path: string, body: unknown) => {
+    if (path === 'vehicle-photos' || path === 'vehicle-photos/delete') {
+      const next = structuredClone(currentState.current);
+      if (path === 'vehicle-photos') {
+        const input = photoUploadSchema.parse(body);
+        const vehicle = next.vehicles.find((vehicle) => vehicle.id === input.vehicleId);
+        if (!vehicle || vehicle.stage === 'returned' || (vehicle.photos?.length ?? 0) >= 30)
+          throw new Error('Ajout de photo indisponible.');
+        const photo = {
+          id: uid(),
+          category: input.category,
+          caption: input.caption,
+          finding: input.finding,
+          createdAt: new Date().toISOString(),
+          author: next.users[0].name,
+          bytes: Math.ceil(input.image.length * 0.75),
+        };
+        (vehicle.photos ??= []).push(photo);
+        photoImages.current.set(photo.id, input.image);
+      } else {
+        const { id } = z.object({ id: z.string() }).parse(body);
+        for (const vehicle of next.vehicles)
+          vehicle.photos = vehicle.photos?.filter((photo) => photo.id !== id);
+        photoImages.current.delete(id);
+      }
+      next.revision++;
+      update(next);
+      return;
+    }
     if (path !== 'send-mail') throw new Error('Opération indisponible dans l’entraînement.');
     const { id } = z.object({ id: z.string() }).parse(body);
     const next = structuredClone(currentState.current);

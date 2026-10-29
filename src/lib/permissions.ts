@@ -27,7 +27,7 @@ export const permissions = [
   },
   {
     id: 'vehicles.edit',
-    label: 'Modifier les informations techniques, la couleur et les notes',
+    label: 'Modifier les informations techniques, la couleur, les notes et les photos',
     group: 'Véhicules',
     mechanic: true,
     reception: true,

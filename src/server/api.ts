@@ -12,6 +12,7 @@ import { actionSchema, log } from '../lib/domain.ts';
 import { createGoogleApi, googleConfiguration } from './google-auth.ts';
 import { requirePermission, visibleState } from '../lib/permissions.ts';
 import { broadcastGarage } from './realtime.ts';
+import { vehiclePhotoApi } from './vehicle-photo-api.ts';
 const knownRoutes = new Set([
   '/api/session',
   '/api/invitation',
@@ -32,15 +33,17 @@ const knownRoutes = new Set([
   '/api/revoke-invitation',
   '/api/password',
   '/api/actions',
+  '/api/vehicle-photos',
+  '/api/vehicle-photos/delete',
   '/api/send-mail',
 ]);
 
-async function body(req: IncomingMessage) {
+async function body(req: IncomingMessage, maxBytes = 128000) {
   let bytes = 0;
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
     bytes += chunk.length;
-    if (bytes > 128000) throw new UserError('Requête trop volumineuse.');
+    if (bytes > maxBytes) throw new UserError('Requête trop volumineuse.');
     chunks.push(chunk);
   }
   try {
@@ -60,9 +63,11 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
     let action: string | undefined;
     const route = knownRoutes.has(path)
       ? path
-      : path.startsWith('/api/document/')
-        ? '/api/document/:id'
-        : '/api/unknown';
+      : path.startsWith('/api/vehicle-photos/')
+        ? '/api/vehicle-photos/:id'
+        : path.startsWith('/api/document/')
+          ? '/api/document/:id'
+          : '/api/unknown';
     res.setHeader('X-Request-Id', requestId);
     res.once('finish', () => {
       if (path !== '/api/auth/google/callback' && (res.statusCode >= 400 || req.method === 'POST'))
@@ -91,7 +96,10 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
         return true;
       }
       // Read the complete request before taking any mutable garage snapshot.
-      const inputBody = req.method === 'POST' ? await body(req) : undefined;
+      const inputBody =
+        req.method === 'POST'
+          ? await body(req, path === '/api/vehicle-photos' ? 12 * 1024 * 1024 : 128000)
+          : undefined;
       session = await store.session(req.headers.cookie, req.headers['x-carm-demo-user']);
       if (await google(req, res, path, inputBody, session, send)) return true;
       if (await accountApi(store, io, req, res, path, inputBody, session, send)) return true;
@@ -103,6 +111,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       const userId = session.userId;
       const actor = s.users.find((u) => u.id === userId);
       if (!actor) throw new UserError('Session invalide.');
+      if (await vehiclePhotoApi(store, io, req.method, path, inputBody, session, res)) return true;
       if (req.method === 'POST' && path === '/api/actions') {
         const input = actionSchema.parse(inputBody);
         action = input.type;

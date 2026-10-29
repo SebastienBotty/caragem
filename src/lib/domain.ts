@@ -1,4 +1,5 @@
 import { UserError } from './errors.ts';
+import type { VehiclePhoto } from './vehicle-photos.ts';
 import { z } from 'zod';
 import { customerVehicles, plateKey, type CustomerVehicle } from './customer-vehicles.ts';
 import {
@@ -90,6 +91,7 @@ export type Vehicle = {
   blocker: string;
   blockerDetails?: Blockage;
   blockerHistory?: (Blockage & { text: string; resolvedAt: string })[];
+  photos?: VehiclePhoto[];
   priority: boolean;
   due: string;
   tasks: Task[];
@@ -242,7 +244,7 @@ export const actionSchema = z.discriminatedUnion('type', [
     id,
     text: z.string().trim().min(1).max(4000),
   }),
-  z.object({ type: z.literal('addTask'), vehicleId: id, title: text }),
+  z.object({ type: z.literal('addTask'), vehicleId: id, title: text, photoId: id.optional() }),
   z.object({
     type: z.literal('task'),
     vehicleId: id,
@@ -528,8 +530,12 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       const v = activeVehicle(a.vehicleId);
       if (v.stage === 'ready')
         throw new UserError('Replacez le véhicule en atelier avant d’ajouter des travaux.');
+      const photo = a.photoId ? requireItem(v.photos ?? [], a.photoId) : undefined;
+      if (photo?.taskId) throw new UserError('Un travail existe déjà pour ce constat.');
+      const taskId = uid();
+      if (photo) photo.taskId = taskId;
       v.tasks.push({
-        id: uid(),
+        id: taskId,
         title: a.title,
         status: 'todo',
         assignees: [],
@@ -644,11 +650,13 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       vehicle(a.vehicleId);
       if ((a.discountAmount ?? 0) > totals(a.lines, a.taxRate).subtotal)
         throw new UserError('La ristourne dépasse le montant HT du document.');
-      const n = s.documents.filter((d) => d.kind === a.kind).length + 1;
+      let n = s.documents.filter((d) => d.kind === a.kind).length + 1;
+      const prefix = `${a.kind === 'estimate' ? 'DEV' : 'FAC'}-${new Date().getFullYear()}-`;
+      while (s.documents.some((d) => d.number === prefix + String(n).padStart(3, '0'))) n++;
       const d: Document = {
         ...a,
         id: uid(),
-        number: `${a.kind === 'estimate' ? 'DEV' : 'FAC'}-${new Date().getFullYear()}-${String(n).padStart(3, '0')}`,
+        number: prefix + String(n).padStart(3, '0'),
         paid: 0,
         accepted: false,
         validated: false,
@@ -790,6 +798,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
         blocker: '',
         blockerDetails: undefined,
         blockerHistory: [],
+        photos: [],
         priority: false,
         tasks: [
           {
