@@ -11,7 +11,7 @@ import {
   type User,
 } from '../lib/domain.ts';
 import { postgresDatabase, type Database, type Sql } from './database.ts';
-import { requirePermission } from '../lib/permissions.ts';
+import { can, permissions, requirePermission } from '../lib/permissions.ts';
 const scryptAsync = promisify(scrypt);
 export async function passwordHash(password: string) {
   const salt = randomBytes(16).toString('hex');
@@ -55,6 +55,7 @@ type Invitation = {
   email: string;
   role: 'mechanic' | 'reception';
   custom_role_id: string | null;
+  inviter_id: string | null;
   expires: number;
 };
 export type GarageAccess = { id: string; name: string; userId: string; role: User['role'] };
@@ -274,6 +275,10 @@ export class Store {
     );
     if (!invite)
       throw new Error('Invitation invalide ou expirée, ou destinée à une autre adresse mail.');
+    const state = await this.get(invite.garage_id, sql, true);
+    if (!invite.inviter_id)
+      throw new Error('Cette invitation doit être renouvelée par le responsable.');
+    this.invitationRole(state, invite.inviter_id, invite.role, invite.custom_role_id ?? undefined);
     const [existing] = await this.rows<Membership>(
       'SELECT * FROM memberships WHERE email=$1 AND garage_id=$2',
       [email, invite.garage_id],
@@ -281,7 +286,6 @@ export class Store {
     );
     let userId = existing?.user_id;
     if (!userId) {
-      const state = await this.get(invite.garage_id, sql, true);
       const account = await this.account(email, sql);
       if (!account) throw new Error('Compte introuvable.');
       const role = state.settings.customRoles?.find((r) => r.id === invite.custom_role_id);
@@ -388,42 +392,60 @@ export class Store {
     await this.db.query('DELETE FROM sessions WHERE token_hash=$1', [hash]);
   }
   async invite(session: Session, email: string, role: User['role'], customRoleId?: string) {
-    const state = await this.get(session.garageId);
-    requirePermission(
-      state,
-      state.users.find((u) => u.id === session.userId)!,
-      'team.invite',
-    );
-    if (role !== 'mechanic' && role !== 'reception') throw new Error('Rôle invalide.');
-    if (customRoleId) {
-      const custom = state.settings.customRoles?.find((r) => r.id === customRoleId);
-      if (!custom) throw new Error('Rôle introuvable dans ce garage.');
-      role = custom.baseRole;
-    }
-    email = email.toLowerCase();
-    if (
-      (
-        await this.rows('SELECT 1 FROM memberships WHERE email=$1 AND garage_id=$2', [
-          email,
+    return this.atomic(async (sql) => {
+      const state = await this.get(session.garageId, sql, true);
+      role = this.invitationRole(state, session.userId, role, customRoleId).role;
+      email = email.toLowerCase();
+      if (
+        (
+          await this.rows(
+            'SELECT 1 FROM memberships WHERE email=$1 AND garage_id=$2',
+            [email, state.id],
+            sql,
+          )
+        ).length
+      )
+        throw new Error('Cette personne fait déjà partie du garage.');
+      const token = randomBytes(24).toString('hex');
+      await sql.query(
+        'INSERT INTO invitations(id,token_hash,garage_id,email,role,expires,custom_role_id,inviter_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(garage_id,email) DO UPDATE SET token_hash=excluded.token_hash,role=excluded.role,expires=excluded.expires,custom_role_id=excluded.custom_role_id,inviter_id=excluded.inviter_id',
+        [
+          uid(),
+          digest(token),
           state.id,
-        ])
-      ).length
-    )
-      throw new Error('Cette personne fait déjà partie du garage.');
-    const token = randomBytes(24).toString('hex');
-    await this.db.query(
-      'INSERT INTO invitations(id,token_hash,garage_id,email,role,expires,custom_role_id) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(garage_id,email) DO UPDATE SET token_hash=excluded.token_hash,role=excluded.role,expires=excluded.expires,custom_role_id=excluded.custom_role_id',
-      [
-        uid(),
-        digest(token),
-        state.id,
-        email,
-        role,
-        Date.now() + 7 * 86400000,
-        customRoleId ?? null,
-      ],
-    );
-    return token;
+          email,
+          role,
+          Date.now() + 7 * 86400000,
+          customRoleId ?? null,
+          session.userId,
+        ],
+      );
+      return token;
+    });
+  }
+  private invitationRole(
+    state: GarageState,
+    inviterId: string,
+    role: User['role'],
+    customRoleId?: string,
+  ): User {
+    const inviter = state.users.find((u) => u.id === inviterId);
+    if (!inviter) throw new Error('Utilisateur non autorisé.');
+    requirePermission(state, inviter, 'team.invite');
+    if (role !== 'mechanic' && role !== 'reception') throw new Error('Rôle invalide.');
+    const custom = state.settings.customRoles?.find((r) => r.id === customRoleId);
+    if (customRoleId && !custom) throw new Error('Rôle introuvable dans ce garage.');
+    const target: User = {
+      id: '',
+      name: '',
+      color: '',
+      role: custom?.baseRole ?? role,
+      customRoleId,
+    };
+    // Recheck at acceptance: a pending role or the inviter's grants may have changed.
+    if (permissions.some((p) => can(state, target, p.id) && !can(state, inviter, p.id)))
+      throw new Error('Vous ne pouvez pas déléguer des permissions que vous ne possédez pas.');
+    return target;
   }
   async invitation(token: string, email: string) {
     await this.ready;
