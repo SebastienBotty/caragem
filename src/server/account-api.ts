@@ -1,3 +1,4 @@
+import { UserError } from '../lib/errors.ts';
 import type { IncomingMessage } from 'node:http';
 import type { Server } from 'socket.io';
 import { z } from 'zod';
@@ -71,7 +72,9 @@ export async function accountApi(
       .parse({ token: params.get('token'), email: params.get('email') });
     const invite = await store.invitation(input.token, input.email);
     if (!invite)
-      throw new Error('Invitation invalide ou expirée. Demandez un nouveau lien au responsable.');
+      throw new UserError(
+        'Invitation invalide ou expirée. Demandez un nouveau lien au responsable.',
+      );
     const garage = await store.get(invite.garage_id);
     send(200, {
       email: invite.email,
@@ -97,7 +100,7 @@ export async function accountApi(
     } else {
       const input = credentials.parse(body);
       if (path === '/api/register') {
-        if (!input.name) throw new Error('Renseignez votre nom.');
+        if (!input.name) throw new UserError('Renseignez votre nom.');
         target = await store.register({
           ...input,
           name: input.name,
@@ -119,7 +122,7 @@ export async function accountApi(
           await broadcast(target.garageId);
         } else {
           const garage = (await store.garages(account.email))[0];
-          if (!garage) throw new Error('Aucun garage associé à ce compte.');
+          if (!garage) throw new UserError('Aucun garage associé à ce compte.');
           target = { garageId: garage.id, userId: garage.userId };
         }
       }
@@ -165,9 +168,9 @@ export async function accountApi(
   }
   if (path === '/api/demo-user') {
     const state = await store.get(session.garageId);
-    if (!state.demo) throw new Error('Le changement de profil est réservé à la démonstration.');
+    if (!state.demo) throw new UserError('Le changement de profil est réservé à la démonstration.');
     const { userId } = z.object({ userId: z.string() }).parse(body);
-    if (!state.users.some((u) => u.id === userId)) throw new Error('Profil introuvable.');
+    if (!state.users.some((u) => u.id === userId)) throw new UserError('Profil introuvable.');
     send(200, { ok: true, userId });
     return true;
   }
@@ -197,14 +200,14 @@ export async function accountApi(
       .parse(body);
     const account = session.email ? await store.account(session.email) : undefined;
     if (!account || !(await passwordMatches(input.current, account.hash)))
-      throw new Error('Mot de passe actuel incorrect.');
+      throw new UserError('Mot de passe actuel incorrect.');
     await store.changePassword(session, await passwordHash(input.password));
     io.in(`account:${session.email}`).disconnectSockets();
     await establish(session.garageId, session.userId);
     send(200, { ok: true });
     return true;
   }
-  if (!session.email) throw new Error('Cette action nécessite un compte personnel.');
+  if (!session.email) throw new UserError('Cette action nécessite un compte personnel.');
   let target: { garageId: string; userId: string };
   if (path === '/api/garages') {
     const { name } = z.object({ name: z.string().trim().min(2).max(100) }).parse(body);

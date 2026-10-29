@@ -1,3 +1,4 @@
+import { UserError } from '../lib/errors.ts';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Server } from 'socket.io';
 import { z } from 'zod';
@@ -16,13 +17,13 @@ async function body(req: IncomingMessage) {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
     bytes += chunk.length;
-    if (bytes > 128000) throw new Error('Requête trop volumineuse.');
+    if (bytes > 128000) throw new UserError('Requête trop volumineuse.');
     chunks.push(chunk);
   }
   try {
     return JSON.parse(Buffer.concat(chunks).toString());
   } catch {
-    throw new Error('Requête JSON invalide.');
+    throw new UserError('Requête JSON invalide.');
   }
 }
 export function createApi(store: Store, io: Server, googleConfig = googleConfiguration) {
@@ -54,7 +55,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       }
       const s = await store.get(session.garageId);
       const actor = s.users.find((u) => u.id === session.userId);
-      if (!actor) throw new Error('Session invalide.');
+      if (!actor) throw new UserError('Session invalide.');
       if (req.method === 'POST' && path === '/api/actions') {
         const state = await store.act(session, actionSchema.parse(inputBody));
         await broadcastGarage(io, state);
@@ -65,7 +66,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
         requirePermission(s, actor, 'garage.view', 'documents.view');
         const documentId = path.slice('/api/document/'.length);
         const d = s.documents.find((d) => d.id === documentId);
-        if (!d) throw new Error('Document introuvable.');
+        if (!d) throw new UserError('Document introuvable.');
         if (s.vehicles.find((v) => v.id === d.vehicleId)?.stage === 'returned')
           requirePermission(s, actor, 'history.view');
         const readable = visibleState(s, actor.id);
@@ -79,9 +80,9 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       if (req.method === 'POST' && path === '/api/send-mail') {
         requirePermission(s, actor, 'garage.view', 'customers.view', 'mail.send');
         const input = z.object({ id: z.string() }).parse(inputBody);
-        if (s.demo) throw new Error('Les envois réels sont désactivés dans la démonstration.');
+        if (s.demo) throw new UserError('Les envois réels sont désactivés dans la démonstration.');
         if (!process.env.SMTP_HOST || !process.env.SMTP_FROM)
-          throw new Error(
+          throw new UserError(
             'Configurez le serveur SMTP avant d’envoyer des mails. Le brouillon est conservé.',
           );
         const { result: mailSnapshot } = await store.updateGarage(s.id, (current) => {
@@ -89,7 +90,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
           requirePermission(current, sender, 'garage.view', 'customers.view', 'mail.send');
           const mail = current.mails.find((m) => m.id === input.id);
           if (!mail || mail.status === 'sent' || mail.status === 'sending')
-            throw new Error('Ce mail ne peut pas être envoyé.');
+            throw new UserError('Ce mail ne peut pas être envoyé.');
           if (mail.documentId) requirePermission(current, sender, 'documents.view');
           if (current.vehicles.find((v) => v.id === mail.vehicleId)?.stage === 'returned')
             requirePermission(current, sender, 'history.view');
@@ -156,14 +157,10 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       }
       send(404, { error: 'Route introuvable.' });
     } catch (e) {
-      send(400, {
-        error:
-          e instanceof z.ZodError
-            ? 'Vérifiez les champs renseignés et les valeurs numériques.'
-            : e instanceof Error
-              ? e.message
-              : 'Une erreur est survenue.',
-      });
+      if (e instanceof z.ZodError)
+        send(400, { error: 'Vérifiez les champs renseignés et les valeurs numériques.' });
+      else if (e instanceof UserError) send(400, { error: e.message });
+      else send(500, { error: 'Une erreur interne est survenue.', requestId: crypto.randomUUID() });
     }
     return true;
   };

@@ -1,3 +1,4 @@
+import { UserError } from './errors.ts';
 import { z } from 'zod';
 import type { Action, GarageState, User } from './domain.ts';
 import { customerVehicles } from './customer-vehicles.ts';
@@ -233,7 +234,7 @@ export function roleLabel(state: GarageState, user: Pick<User, 'role' | 'customR
 export function requirePermission(state: GarageState, user: User, ...required: Permission[]) {
   // ASVS 8.3.1: enforce the current garage's grants at the trusted service layer.
   if (!required.every((permission) => can(state, user, permission)))
-    throw new Error('Vous n’avez pas l’autorisation pour cette action.');
+    throw new UserError('Vous n’avez pas l’autorisation pour cette action.');
 }
 
 export function actionPermissions(action: Action): Permission[] {
@@ -290,7 +291,7 @@ export function actionPermissions(action: Action): Permission[] {
 
 export function visibleState(current: GarageState, userId: string): GarageState {
   const user = current.users.find((u) => u.id === userId);
-  if (!user) throw new Error('Session invalide.');
+  if (!user) throw new UserError('Session invalide.');
   if (user.role === 'owner') return { ...current, savedVehicles: customerVehicles(current) };
   const state = structuredClone(current);
   const allowed = (p: Permission) => can(current, user, p);

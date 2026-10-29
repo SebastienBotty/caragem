@@ -1,3 +1,4 @@
+import { UserError } from '../lib/errors.ts';
 import { readFileSync } from 'node:fs';
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -93,7 +94,7 @@ export class Store {
       [id],
       sql,
     );
-    if (!row) throw new Error('Garage introuvable.');
+    if (!row) throw new UserError('Garage introuvable.');
     return row.state;
   }
   async save(state: GarageState, sql: Sql = this.db) {
@@ -114,7 +115,7 @@ export class Store {
   async act(session: Session, action: Action) {
     const { state } = await this.updateGarage(session.garageId, async (s, sql) => {
       const user = s.users.find((u) => u.id === session.userId);
-      if (!user) throw new Error('Session invalide.');
+      if (!user) throw new UserError('Session invalide.');
       Object.assign(s, applyAction(s, action, user));
       if (action.type === 'assignRole' || action.type === 'customRole')
         await sql.query(
@@ -143,7 +144,7 @@ export class Store {
   }
   private async createOwned(sql: Sql, email: string, garageName: string) {
     const account = await this.account(email, sql);
-    if (!account) throw new Error('Compte introuvable.');
+    if (!account) throw new UserError('Compte introuvable.');
     const state = createSeed(uid(), false);
     state.settings.name = garageName;
     state.settings.address = '';
@@ -166,19 +167,19 @@ export class Store {
   }) {
     return this.atomic(async (sql) => {
       if (await this.account(input.email, sql))
-        throw new Error('Cette adresse possède déjà un compte. Connectez-vous.');
+        throw new UserError('Cette adresse possède déjà un compte. Connectez-vous.');
       await sql.query('INSERT INTO accounts(email,hash,name) VALUES($1,$2,$3)', [
         input.email,
         input.hash,
         input.name,
       ]);
       if (input.invitation) return this.join(sql, input.email, input.invitation);
-      if (!input.garage) throw new Error('Renseignez le nom de votre garage.');
+      if (!input.garage) throw new UserError('Renseignez le nom de votre garage.');
       return this.createOwned(sql, input.email, input.garage);
     });
   }
   async createGarage(session: Session, name: string) {
-    if (!session.email) throw new Error('Créez un compte personnel pour créer un garage.');
+    if (!session.email) throw new UserError('Créez un compte personnel pour créer un garage.');
     return this.atomic((sql) => this.createOwned(sql, session.email!, name));
   }
   async saveGoogleRequest(state: string, browser: string, payload: GoogleAuthRequest) {
@@ -201,7 +202,7 @@ export class Store {
     return row?.payload;
   }
   async googleAccount(profile: GoogleProfile, request: GoogleAuthRequest) {
-    if (!profile.emailVerified) throw new Error('google_unverified_email');
+    if (!profile.emailVerified) throw new UserError('google_unverified_email');
     return this.atomic(async (sql) => {
       // Serialize this provider identity; email alone never associates an existing account.
       await sql.query("SELECT pg_advisory_xact_lock(hashtextextended('google:' || $1,0))", [
@@ -229,13 +230,13 @@ export class Store {
           session.account_email !== profile.email ||
           (email && email !== session.account_email)
         )
-          throw new Error('google_link_failed');
+          throw new UserError('google_link_failed');
         const [other] = await this.rows<{ subject: string }>(
           'SELECT subject FROM google_identities WHERE email=$1',
           [session.account_email],
           sql,
         );
-        if (other && other.subject !== profile.sub) throw new Error('google_link_failed');
+        if (other && other.subject !== profile.sub) throw new UserError('google_link_failed');
         if (!identity)
           await sql.query('INSERT INTO google_identities(subject,email) VALUES($1,$2)', [
             profile.sub,
@@ -244,7 +245,7 @@ export class Store {
         email = session.account_email;
         linkedTarget = { garageId: session.garage_id, userId: session.user_id };
       } else if (!identity) {
-        if (await this.account(profile.email, sql)) throw new Error('google_link_required');
+        if (await this.account(profile.email, sql)) throw new UserError('google_link_required');
         await sql.query('INSERT INTO accounts(email,hash,name) VALUES($1,NULL,$2)', [
           profile.email,
           profile.name,
@@ -255,7 +256,7 @@ export class Store {
         ]);
         email = profile.email;
       }
-      if (!email) throw new Error('google_signin_failed');
+      if (!email) throw new UserError('google_signin_failed');
       if (request.invitation) return this.join(sql, email, request.invitation);
       if (linkedTarget) return linkedTarget;
       const [membership] = await this.rows<Membership>(
@@ -274,10 +275,10 @@ export class Store {
       sql,
     );
     if (!invite)
-      throw new Error('Invitation invalide ou expirée, ou destinée à une autre adresse mail.');
+      throw new UserError('Invitation invalide ou expirée, ou destinée à une autre adresse mail.');
     const state = await this.get(invite.garage_id, sql, true);
     if (!invite.inviter_id)
-      throw new Error('Cette invitation doit être renouvelée par le responsable.');
+      throw new UserError('Cette invitation doit être renouvelée par le responsable.');
     this.invitationRole(state, invite.inviter_id, invite.role, invite.custom_role_id ?? undefined);
     const [existing] = await this.rows<Membership>(
       'SELECT * FROM memberships WHERE email=$1 AND garage_id=$2',
@@ -287,10 +288,10 @@ export class Store {
     let userId = existing?.user_id;
     if (!userId) {
       const account = await this.account(email, sql);
-      if (!account) throw new Error('Compte introuvable.');
+      if (!account) throw new UserError('Compte introuvable.');
       const role = state.settings.customRoles?.find((r) => r.id === invite.custom_role_id);
       if (invite.custom_role_id && !role)
-        throw new Error('Le rôle de cette invitation n’existe plus.');
+        throw new UserError('Le rôle de cette invitation n’existe plus.');
       const user: User = {
         id: uid(),
         name: account.name,
@@ -322,7 +323,7 @@ export class Store {
       'SELECT * FROM memberships WHERE email=$1 AND garage_id=$2',
       [email, garageId],
     );
-    if (!row) throw new Error('Vous ne faites pas partie de ce garage.');
+    if (!row) throw new UserError('Vous ne faites pas partie de ce garage.');
     return { garageId: row.garage_id, userId: row.user_id };
   }
   async newSession(garageId: string, userId: string) {
@@ -333,7 +334,7 @@ export class Store {
       [garageId, userId],
     );
     if (!state.users.some((u) => u.id === userId) || (!state.demo && !membership))
-      throw new Error('Accès au garage refusé.');
+      throw new UserError('Accès au garage refusé.');
     const token = randomBytes(32).toString('hex');
     await this.db.query('DELETE FROM sessions WHERE expires<$1', [Date.now()]);
     // ASVS 7.2.2: only a hash of the session secret is persisted.
@@ -405,7 +406,7 @@ export class Store {
           )
         ).length
       )
-        throw new Error('Cette personne fait déjà partie du garage.');
+        throw new UserError('Cette personne fait déjà partie du garage.');
       const token = randomBytes(24).toString('hex');
       await sql.query(
         'INSERT INTO invitations(id,token_hash,garage_id,email,role,expires,custom_role_id,inviter_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(garage_id,email) DO UPDATE SET token_hash=excluded.token_hash,role=excluded.role,expires=excluded.expires,custom_role_id=excluded.custom_role_id,inviter_id=excluded.inviter_id',
@@ -430,11 +431,11 @@ export class Store {
     customRoleId?: string,
   ): User {
     const inviter = state.users.find((u) => u.id === inviterId);
-    if (!inviter) throw new Error('Utilisateur non autorisé.');
+    if (!inviter) throw new UserError('Utilisateur non autorisé.');
     requirePermission(state, inviter, 'team.invite');
-    if (role !== 'mechanic' && role !== 'reception') throw new Error('Rôle invalide.');
+    if (role !== 'mechanic' && role !== 'reception') throw new UserError('Rôle invalide.');
     const custom = state.settings.customRoles?.find((r) => r.id === customRoleId);
-    if (customRoleId && !custom) throw new Error('Rôle introuvable dans ce garage.');
+    if (customRoleId && !custom) throw new UserError('Rôle introuvable dans ce garage.');
     const target: User = {
       id: '',
       name: '',
@@ -444,7 +445,7 @@ export class Store {
     };
     // Recheck at acceptance: a pending role or the inviter's grants may have changed.
     if (permissions.some((p) => can(state, target, p.id) && !can(state, inviter, p.id)))
-      throw new Error('Vous ne pouvez pas déléguer des permissions que vous ne possédez pas.');
+      throw new UserError('Vous ne pouvez pas déléguer des permissions que vous ne possédez pas.');
     return target;
   }
   async invitation(token: string, email: string) {
@@ -485,7 +486,7 @@ export class Store {
     await this.db.query('DELETE FROM invitations WHERE token_hash=$1', [digest(token)]);
   }
   async changePassword(session: Session, hash: string) {
-    if (!session.email) throw new Error('Aucun compte personnel associé.');
+    if (!session.email) throw new UserError('Aucun compte personnel associé.');
     await this.atomic(async (sql) => {
       await sql.query('UPDATE accounts SET hash=$1 WHERE email=$2', [hash, session.email]);
       await sql.query('DELETE FROM sessions WHERE account_email=$1', [session.email]);
@@ -501,7 +502,7 @@ export class Store {
     } else {
       await this.updateGarage(session.garageId, (state) => {
         const user = state.users.find((u) => u.id === session.userId);
-        if (!state.demo || !user) throw new Error('Session invalide.');
+        if (!state.demo || !user) throw new UserError('Session invalide.');
         user.onboardingSeen = true;
         state.revision++;
       });

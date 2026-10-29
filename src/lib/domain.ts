@@ -1,3 +1,4 @@
+import { UserError } from './errors.ts';
 import { z } from 'zod';
 import { customerVehicles, plateKey, type CustomerVehicle } from './customer-vehicles.ts';
 import {
@@ -350,14 +351,14 @@ export function log(s: GarageState, text: string, author: string, permissions?: 
 }
 function requireItem<T extends { id: string }>(items: T[], itemId: string): T {
   const item = items.find((i) => i.id === itemId);
-  if (!item) throw new Error('Élément introuvable dans ce garage.');
+  if (!item) throw new UserError('Élément introuvable dans ce garage.');
   return item;
 }
 export function applyAction(current: GarageState, input: Action, actor: User): GarageState {
   const a = actionSchema.parse(input);
   const s = structuredClone(current);
   if (!s.users.some((u) => u.id === actor.id && u.role === actor.role))
-    throw new Error('Utilisateur non autorisé.');
+    throw new UserError('Utilisateur non autorisé.');
   actor = s.users.find((u) => u.id === actor.id)!;
   requirePermission(s, actor, ...actionPermissions(a));
   const now = new Date().toISOString();
@@ -375,7 +376,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
   const activeVehicle = (id: string) => {
     const v = vehicle(id);
     if (v.stage === 'returned')
-      throw new Error('Ce dossier est clôturé. Créez une nouvelle visite.');
+      throw new UserError('Ce dossier est clôturé. Créez une nouvelle visite.');
     return v;
   };
   switch (a.type) {
@@ -401,10 +402,10 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
         ? requireItem(s.vehicles, a.existingVehicleId)
         : undefined;
       if (existing && existing.customerId !== a.customerId)
-        throw new Error('Ce véhicule n’appartient pas au client sélectionné.');
+        throw new UserError('Ce véhicule n’appartient pas au client sélectionné.');
       const plate = (existing?.plate ?? a.plate).trim().toUpperCase();
       if (s.vehicles.some((v) => plateKey(v.plate) === plateKey(plate) && v.stage !== 'returned'))
-        throw new Error('Ce véhicule est déjà présent dans le garage.');
+        throw new UserError('Ce véhicule est déjà présent dans le garage.');
       const visit =
         Math.max(
           0,
@@ -439,12 +440,14 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
         (a.stage === 'returned' || a.stage === 'ready') &&
         s.reservations.some((r) => r.vehicleId === v.id && !r.consumed)
       )
-        throw new Error('Utilisez ou libérez les pièces réservées avant la validation.');
+        throw new UserError('Utilisez ou libérez les pièces réservées avant la validation.');
       if (a.stage === 'ready' && (v.tasks.some((t) => t.status !== 'done') || v.blocker))
-        throw new Error('Terminez les tâches et levez les blocages avant de valider le contrôle.');
+        throw new UserError(
+          'Terminez les tâches et levez les blocages avant de valider le contrôle.',
+        );
       if (a.stage === 'returned' && v.stage !== 'ready')
-        throw new Error('Validez le véhicule comme prêt avant la restitution.');
-      if (a.stage === v.stage) throw new Error('Le véhicule se trouve déjà dans cette zone.');
+        throw new UserError('Validez le véhicule comme prêt avant la restitution.');
+      if (a.stage === v.stage) throw new UserError('Le véhicule se trouve déjà dans cette zone.');
       v.stage = a.stage;
       message = `${v.plate} → ${stages.find((x) => x.id === a.stage)?.label ?? 'Remis au client'}`;
       break;
@@ -464,7 +467,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     case 'addTask': {
       const v = activeVehicle(a.vehicleId);
       if (v.stage === 'ready')
-        throw new Error('Replacez le véhicule en atelier avant d’ajouter des travaux.');
+        throw new UserError('Replacez le véhicule en atelier avant d’ajouter des travaux.');
       v.tasks.push({
         id: uid(),
         title: a.title,
@@ -479,34 +482,34 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       const v = activeVehicle(a.vehicleId);
       const t = requireItem(v.tasks, a.taskId);
       if (v.stage === 'ready')
-        throw new Error('Replacez le véhicule en atelier pour modifier les travaux.');
+        throw new UserError('Replacez le véhicule en atelier pour modifier les travaux.');
       if (a.operation === 'claim') {
         if (t.status !== 'todo')
-          throw new Error('L’état de la tâche a changé. Actualisez votre vue.');
+          throw new UserError('L’état de la tâche a changé. Actualisez votre vue.');
         if (t.assignees.length)
-          throw new Error('Cette tâche est déjà attribuée. Demandez à être ajouté.');
+          throw new UserError('Cette tâche est déjà attribuée. Demandez à être ajouté.');
         t.assignees = [actor.id];
       } else if (a.operation === 'assign') {
-        if (!a.assignees) throw new Error('Sélectionnez les intervenants.');
+        if (!a.assignees) throw new UserError('Sélectionnez les intervenants.');
         a.assignees.forEach((id) => requireItem(s.users, id));
         t.assignees = [...new Set(a.assignees)];
       } else {
         if (!can(s, actor, 'tasks.manage') && !t.assignees.includes(actor.id))
-          throw new Error('Prenez cette tâche avant de la modifier.');
+          throw new UserError('Prenez cette tâche avant de la modifier.');
         if (a.operation === 'start') {
           if (v.stage !== 'workshop') requirePermission(s, actor, 'vehicles.stage');
-          if (t.status !== 'todo') throw new Error('L’état de la tâche a changé.');
+          if (t.status !== 'todo') throw new UserError('L’état de la tâche a changé.');
           if (!t.assignees.length) t.assignees.push(actor.id);
           t.status = 'doing';
           v.stage = 'workshop';
         }
         if (a.operation === 'finish') {
-          if (t.status !== 'doing') throw new Error('L’état de la tâche a changé.');
+          if (t.status !== 'doing') throw new UserError('L’état de la tâche a changé.');
           t.status = 'done';
           t.minutes = a.minutes ?? t.minutes;
         }
         if (a.operation === 'reopen') {
-          if (t.status !== 'done') throw new Error('L’état de la tâche a changé.');
+          if (t.status !== 'done') throw new UserError('L’état de la tâche a changé.');
           t.status = 'todo';
         }
       }
@@ -515,7 +518,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'part': {
       if (s.parts.some((p) => p.reference === a.reference))
-        throw new Error('Cette référence existe déjà.');
+        throw new UserError('Cette référence existe déjà.');
       s.parts.push({ ...a, id: uid() });
       message = `Pièce ajoutée : ${a.name}`;
       break;
@@ -523,7 +526,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     case 'reserve': {
       const v = activeVehicle(a.vehicleId);
       const p = requireItem(s.parts, a.partId);
-      if (available(s, p.id) < a.quantity) throw new Error('Stock disponible insuffisant.');
+      if (available(s, p.id) < a.quantity) throw new UserError('Stock disponible insuffisant.');
       s.reservations.push({
         id: uid(),
         vehicleId: v.id,
@@ -538,8 +541,8 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       const r = requireItem(s.reservations, a.id);
       activeVehicle(r.vehicleId);
       const p = requireItem(s.parts, r.partId);
-      if (r.consumed) throw new Error('Cette réservation est déjà utilisée.');
-      if (p.stock < r.quantity) throw new Error('Stock insuffisant.');
+      if (r.consumed) throw new UserError('Cette réservation est déjà utilisée.');
+      if (p.stock < r.quantity) throw new UserError('Stock insuffisant.');
       p.stock -= r.quantity;
       r.consumed = true;
       message = `${p.name} monté sur ${vehicle(r.vehicleId).plate}`;
@@ -548,7 +551,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     case 'release': {
       const r = requireItem(s.reservations, a.id);
       vehicle(r.vehicleId);
-      if (r.consumed) throw new Error('Une pièce utilisée ne peut pas être libérée.');
+      if (r.consumed) throw new UserError('Une pièce utilisée ne peut pas être libérée.');
       s.reservations = s.reservations.filter((x) => x.id !== r.id);
       message = 'Réservation de pièce libérée';
       break;
@@ -556,7 +559,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     case 'adjustStock': {
       const p = requireItem(s.parts, a.id);
       if (available(s, p.id) + a.delta < 0)
-        throw new Error('Stock disponible insuffisant pour cet ajustement.');
+        throw new UserError('Stock disponible insuffisant pour cet ajustement.');
       p.stock += a.delta;
       message = `Stock ${p.reference} : ${a.delta > 0 ? '+' : ''}${a.delta} · ${a.reason}`;
       break;
@@ -571,7 +574,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     case 'receive': {
       const o = requireItem(s.orders, a.id);
       if (o.received + a.quantity > o.quantity)
-        throw new Error('La réception dépasse la quantité restante.');
+        throw new UserError('La réception dépasse la quantité restante.');
       o.received += a.quantity;
       requireItem(s.parts, o.partId).stock += a.quantity;
       message = `${o.reference} : ${a.quantity} pièce(s) réceptionnée(s)`;
@@ -596,7 +599,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     case 'acceptEstimate': {
       const d = requireItem(s.documents, a.id);
       vehicle(d.vehicleId);
-      if (d.kind !== 'estimate') throw new Error('Ce document n’est pas un devis.');
+      if (d.kind !== 'estimate') throw new UserError('Ce document n’est pas un devis.');
       d.accepted = true;
       message = `${d.number} : accord enregistré · ${a.evidence}`;
       break;
@@ -604,8 +607,8 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     case 'validateDocument': {
       const d = requireItem(s.documents, a.id);
       vehicle(d.vehicleId);
-      if (d.kind !== 'invoice') throw new Error('Enregistrez l’accord du client sur le devis.');
-      if (d.validated) throw new Error('Cette facture est déjà validée.');
+      if (d.kind !== 'invoice') throw new UserError('Enregistrez l’accord du client sur le devis.');
+      if (d.validated) throw new UserError('Cette facture est déjà validée.');
       d.validated = true;
       message = `${d.number} : facture validée`;
       break;
@@ -614,9 +617,9 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       const d = requireItem(s.documents, a.id);
       vehicle(d.vehicleId);
       if (d.kind !== 'estimate' || !d.accepted)
-        throw new Error('Enregistrez d’abord l’accord sur le devis.');
+        throw new UserError('Enregistrez d’abord l’accord sur le devis.');
       if (s.documents.some((x) => x.kind === 'invoice' && x.vehicleId === d.vehicleId))
-        throw new Error('Une facture existe déjà pour cette intervention.');
+        throw new UserError('Une facture existe déjà pour cette intervention.');
       return applyAction(
         current,
         {
@@ -631,12 +634,12 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'payment': {
       const d = requireItem(s.documents, a.id);
-      if (d.kind !== 'invoice') throw new Error('Un paiement doit être associé à une facture.');
+      if (d.kind !== 'invoice') throw new UserError('Un paiement doit être associé à une facture.');
       vehicle(d.vehicleId);
       if (!d.validated && !(d.validated === undefined && d.paid > 0))
-        throw new Error('Validez la facture avant d’enregistrer un paiement.');
+        throw new UserError('Validez la facture avant d’enregistrer un paiement.');
       if (d.paid + a.amount > totals(d.lines, d.taxRate).gross)
-        throw new Error('Le montant dépasse le solde restant.');
+        throw new UserError('Le montant dépasse le solde restant.');
       d.paid += a.amount;
       message = `${d.number} : règlement de ${money(a.amount)}`;
       break;
@@ -645,7 +648,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       vehicle(a.vehicleId);
       if (a.documentId) requirePermission(s, actor, 'documents.view');
       if (a.documentId && requireItem(s.documents, a.documentId).vehicleId !== a.vehicleId)
-        throw new Error('Le document doit appartenir à ce dossier.');
+        throw new UserError('Le document doit appartenir à ce dossier.');
       s.mails.unshift({ ...a, id: uid(), status: 'draft' });
       message = `Mail préparé : ${a.subject}`;
       break;
@@ -655,9 +658,9 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       vehicle(m.vehicleId);
       if (a.documentId) requirePermission(s, actor, 'documents.view');
       if (m.status === 'sent' || m.status === 'sending')
-        throw new Error('Ce mail ne peut plus être modifié.');
+        throw new UserError('Ce mail ne peut plus être modifié.');
       if (a.documentId && requireItem(s.documents, a.documentId).vehicleId !== m.vehicleId)
-        throw new Error('Le document doit appartenir à ce dossier.');
+        throw new UserError('Le document doit appartenir à ce dossier.');
       Object.assign(m, {
         to: a.to,
         subject: a.subject,
@@ -682,7 +685,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'arrive': {
       const ap = requireItem(s.appointments, a.id);
-      if (ap.arrived) throw new Error('Cette arrivée a déjà été enregistrée.');
+      if (ap.arrived) throw new UserError('Cette arrivée a déjà été enregistrée.');
       const next = applyAction(
         s,
         {
@@ -703,11 +706,11 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'revisit': {
       const old = vehicle(a.id);
-      if (old.stage !== 'returned') throw new Error('Ce véhicule a déjà une visite en cours.');
+      if (old.stage !== 'returned') throw new UserError('Ce véhicule a déjà une visite en cours.');
       if (
         s.vehicles.some((v) => plateKey(v.plate) === plateKey(old.plate) && v.stage !== 'returned')
       )
-        throw new Error('Une visite est déjà en cours.');
+        throw new UserError('Une visite est déjà en cours.');
       const saved = customerVehicles(s, old.customerId).find(
         (v) => plateKey(v.plate) === plateKey(old.plate),
       )!;
@@ -745,27 +748,30 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'settings': {
       if (a.rolePermissions && actor.role !== 'owner')
-        throw new Error('Seul le patron peut modifier les permissions.');
+        throw new UserError('Seul le patron peut modifier les permissions.');
       s.settings = { ...s.settings, ...a, configured: true };
       message = 'Configuration du garage mise à jour';
       break;
     }
     case 'rolePermissions': {
-      if (actor.role !== 'owner') throw new Error('Seul le patron peut modifier les permissions.');
+      if (actor.role !== 'owner')
+        throw new UserError('Seul le patron peut modifier les permissions.');
       s.settings.rolePermissions = a.permissions;
       message = 'Permissions des rôles mises à jour';
       break;
     }
     case 'userPermissions': {
-      if (actor.role !== 'owner') throw new Error('Seul le patron peut modifier les permissions.');
+      if (actor.role !== 'owner')
+        throw new UserError('Seul le patron peut modifier les permissions.');
       const user = requireItem(s.users, a.userId);
-      if (user.role === 'owner') throw new Error('Le patron conserve toujours un accès complet.');
+      if (user.role === 'owner')
+        throw new UserError('Le patron conserve toujours un accès complet.');
       user.permissions = a.permissions;
       message = `Permissions individuelles de ${user.name} mises à jour`;
       break;
     }
     case 'customRole': {
-      if (actor.role !== 'owner') throw new Error('Seul le patron peut gérer les rôles.');
+      if (actor.role !== 'owner') throw new UserError('Seul le patron peut gérer les rôles.');
       const roles = (s.settings.customRoles ??= []);
       if (
         ['Responsable', 'Patron', 'Mécanicien', 'Accueil'].some(
@@ -775,7 +781,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
           (r) => r.id !== a.id && r.name.localeCompare(a.name, 'fr', { sensitivity: 'base' }) === 0,
         )
       )
-        throw new Error('Ce nom de rôle est déjà utilisé.');
+        throw new UserError('Ce nom de rôle est déjà utilisé.');
       const role = a.id
         ? requireItem(roles, a.id)
         : { id: uid(), name: a.name, baseRole: a.baseRole, permissions: a.permissions };
@@ -787,9 +793,10 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       break;
     }
     case 'assignRole': {
-      if (actor.role !== 'owner') throw new Error('Seul le patron peut attribuer les rôles.');
+      if (actor.role !== 'owner') throw new UserError('Seul le patron peut attribuer les rôles.');
       const member = requireItem(s.users, a.userId);
-      if (member.role === 'owner') throw new Error('Le patron conserve toujours un accès complet.');
+      if (member.role === 'owner')
+        throw new UserError('Le patron conserve toujours un accès complet.');
       if (a.roleId === 'mechanic' || a.roleId === 'reception') {
         member.role = a.roleId;
         delete member.customRoleId;

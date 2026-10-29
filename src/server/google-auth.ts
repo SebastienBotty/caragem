@@ -1,3 +1,4 @@
+import { UserError } from '../lib/errors.ts';
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Server } from 'socket.io';
@@ -13,7 +14,7 @@ const callbackUrl = () => new URL(callbackPath, appOrigin()).href;
 export const googleEnabled = () =>
   Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 export async function googleConfiguration() {
-  if (!googleEnabled()) throw new Error('google_unavailable');
+  if (!googleEnabled()) throw new UserError('google_unavailable');
   const config = await oidc.discovery(
     new URL('https://accounts.google.com'),
     process.env.GOOGLE_CLIENT_ID!,
@@ -82,7 +83,7 @@ export function createGoogleApi(store: Store, io: Server, configuration = google
           !account?.hash ||
           !(await passwordMatches(input.password ?? '', account.hash))
         )
-          throw new Error('Confirmez le mot de passe de votre compte avant d’associer Google.');
+          throw new UserError('Confirmez le mot de passe de votre compte avant d’associer Google.');
         linkSessionHash = session.tokenHash;
       }
       const config = await configuration();
@@ -119,10 +120,10 @@ export function createGoogleApi(store: Store, io: Server, configuration = google
       const browser = /(?:^|;\s*)carm_google=([a-f0-9]{64})(?:;|$)/.exec(
         req.headers.cookie ?? '',
       )?.[1];
-      if (!state || state.length > 200 || !browser) throw new Error('google_invalid_request');
+      if (!state || state.length > 200 || !browser) throw new UserError('google_invalid_request');
       const request = await store.consumeGoogleRequest(state, browser);
-      if (!request) throw new Error('google_invalid_request');
-      if (url.searchParams.get('error')) throw new Error('google_cancelled');
+      if (!request) throw new UserError('google_invalid_request');
+      if (url.searchParams.get('error')) throw new UserError('google_cancelled');
       const config = await configuration();
       const tokens = await oidc.authorizationCodeGrant(config, url, {
         pkceCodeVerifier: request.verifier,
