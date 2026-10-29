@@ -17,6 +17,10 @@ export function DocumentForm({
   const { state, act } = useGarage();
   const [vId, setVId] = useState(vehicleId);
   const [tax, setTax] = useState(state.settings.country === 'BE' ? 21 : 20);
+  const [discountType, setDiscountType] = useState<'percent' | 'amount'>('percent');
+  const [discountValue, setDiscountValue] = useState(0);
+  const discountRate = discountType === 'percent' ? discountValue : 0;
+  const discountAmount = discountType === 'amount' ? Math.round(discountValue * 100) : 0;
   const suggested = (id: string): Line[] => {
     const v = state.vehicles.find((v) => v.id === id);
     if (!v) return [{ label: '', quantity: 1, unitPrice: 0 }];
@@ -37,7 +41,7 @@ export function DocumentForm({
     ];
   };
   const [lines, setLines] = useState<Line[]>(suggested(vehicleId));
-  const t = totals(lines, tax);
+  const t = totals(lines, tax, discountRate, discountAmount);
   return (
     <Modal
       wide
@@ -54,6 +58,8 @@ export function DocumentForm({
             kind,
             lines,
             taxRate: tax,
+            discountRate,
+            discountAmount,
           });
           close();
         }}
@@ -151,6 +157,42 @@ export function DocumentForm({
           <Plus size={15} /> Ajouter une ligne
         </button>
         <div className="document-total">
+          <Field label="Ristourne (%)">
+            <input
+              aria-label="Ristourne globale en pourcentage"
+              required
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={
+                discountType === 'percent'
+                  ? discountValue
+                  : t.subtotal
+                    ? Math.round((t.discount * 10000) / t.subtotal) / 100
+                    : 0
+              }
+              onChange={(e) => {
+                setDiscountType('percent');
+                setDiscountValue(Number(e.target.value));
+              }}
+            />
+          </Field>
+          <Field label="Ristourne (€ HT)">
+            <input
+              aria-label="Ristourne globale en euros HT"
+              required
+              type="number"
+              min={0}
+              max={t.subtotal / 100}
+              step="0.01"
+              value={discountType === 'amount' ? discountValue : t.discount / 100}
+              onChange={(e) => {
+                setDiscountType('amount');
+                setDiscountValue(Number(e.target.value));
+              }}
+            />
+          </Field>
           <Field label="TVA (%)">
             <input
               aria-label="Taux de TVA"
@@ -164,6 +206,17 @@ export function DocumentForm({
             />
           </Field>
           <div>
+            {discountValue > 0 && (
+              <>
+                <span>
+                  Sous-total HT <b>{money(t.subtotal)}</b>
+                </span>
+                <span>
+                  {discountType === 'percent' ? `Ristourne (${discountRate} %)` : 'Ristourne (€)'}{' '}
+                  <b>{money(-t.discount)}</b>
+                </span>
+              </>
+            )}
             <span>
               Total HT <b>{money(t.net)}</b>
             </span>

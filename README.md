@@ -88,6 +88,7 @@ Il faut arrêter le serveur de développement avant de démarrer la production s
 - Pièces, stock disponible/réservé, montage, libération et ajustements justifiés.
 - Commandes fournisseurs enregistrées et réceptions partielles.
 - Devis, accord client enregistré, conversion en facture, paiements suivis, PDF téléchargeables. **Ce sont des brouillons de travail, pas une solution de facturation certifiée.**
+- Ristourne globale facultative à la création des devis et factures : deux champs liés, en euros HT et en pourcentage (0 à 100 %), se mettent à jour mutuellement avec un affichage à deux décimales. Le dernier champ modifié fait référence : un montant en euros reste fixe si les lignes changent, un pourcentage suit le total HT. La ristourne est déduite du HT avant TVA, détaillée dans les totaux et les PDF, conservée lors de la conversion en facture et prise en compte dans le solde à payer. Un montant fixe ne peut pas dépasser le total HT. Les anciens documents conservent leurs montants et leurs ristournes en pourcentage.
 - Brouillons de mails préremplis, modifiables et validés manuellement, avec document PDF facultatif. Aucun déclenchement automatique.
 - Synchronisation Socket.IO entre les sessions du même garage. Les actions sont validées au serveur ; les clients n’envoient pas un état complet à écraser.
 

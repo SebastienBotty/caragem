@@ -88,6 +88,8 @@ test('purchase receipts may be partial, never exceed ordered quantity', () => {
 test('money uses cents and mechanic cannot modify financial documents', () => {
   const s = createSeed('test', true);
   assert.deepEqual(totals([{ label: 'Test', quantity: 3, unitPrice: 1099 }], 20), {
+    subtotal: 3297,
+    discount: 0,
     net: 3297,
     tax: 659,
     gross: 3956,

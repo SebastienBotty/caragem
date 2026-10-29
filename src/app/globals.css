@@ -3193,6 +3193,7 @@ th {
 }
 .document-total {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-end;
   gap: 25px;
@@ -3204,6 +3205,7 @@ th {
 }
 .document-total > div {
   width: 230px;
+  margin-left: auto;
 }
 .document-total > div > span,
 .document-total > div > strong {

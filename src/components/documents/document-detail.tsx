@@ -9,7 +9,12 @@ export function DocumentDetail({ document, close }: { document: Document; close:
   const { state, can, act, training } = useGarage();
   const v = state.vehicles.find((v) => v.id === document.vehicleId)!;
   const customer = state.customers.find((c) => c.id === v.customerId)!;
-  const t = totals(document.lines, document.taxRate);
+  const t = totals(
+    document.lines,
+    document.taxRate,
+    document.discountRate,
+    document.discountAmount,
+  );
   const [payment, setPayment] = useState(false);
   const [accept, setAccept] = useState(false);
   return (
@@ -69,6 +74,19 @@ export function DocumentDetail({ document, close }: { document: Document; close:
             </tbody>
           </table>
           <div className="totals-summary">
+            {((document.discountRate ?? 0) > 0 || (document.discountAmount ?? 0) > 0) && (
+              <>
+                <span>
+                  Sous-total HT <b>{money(t.subtotal)}</b>
+                </span>
+                <span>
+                  {document.discountAmount
+                    ? 'Ristourne (€)'
+                    : `Ristourne (${document.discountRate} %)`}{' '}
+                  <b>{money(-t.discount)}</b>
+                </span>
+              </>
+            )}
             <span>
               Total HT <b>{money(t.net)}</b>
             </span>

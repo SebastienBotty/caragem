@@ -116,8 +116,14 @@ export async function documentPdf(s: GarageState, d: Document) {
     y -= 15;
   }
   if (y < 260) newPage();
-  const t = totals(d.lines, d.taxRate);
+  const t = totals(d.lines, d.taxRate, d.discountRate, d.discountAmount);
   for (const [label, amount] of [
+    ...((d.discountRate ?? 0) > 0 || (d.discountAmount ?? 0) > 0
+      ? [
+          ['Sous-total HT', t.subtotal],
+          [d.discountAmount ? 'Ristourne (EUR)' : `Ristourne (${d.discountRate} %)`, -t.discount],
+        ]
+      : []),
     ['Total HT', t.net],
     [`TVA (${d.taxRate} %)`, t.tax],
     ['Total TTC', t.gross],

@@ -116,6 +116,8 @@ export type Document = {
   vehicleId: string;
   lines: Line[];
   taxRate: number;
+  discountRate?: number;
+  discountAmount?: number;
   paid: number;
   accepted: boolean;
   validated?: boolean;
@@ -259,13 +261,20 @@ export const actionSchema = z.discriminatedUnion('type', [
     unitCost: cents,
   }),
   z.object({ type: z.literal('receive'), id, quantity: count }),
-  z.object({
-    type: z.literal('document'),
-    vehicleId: id,
-    kind: z.enum(['estimate', 'invoice']),
-    lines: z.array(lineSchema).min(1).max(100),
-    taxRate: z.number().min(0).max(30),
-  }),
+  z
+    .object({
+      type: z.literal('document'),
+      vehicleId: id,
+      kind: z.enum(['estimate', 'invoice']),
+      lines: z.array(lineSchema).min(1).max(100),
+      taxRate: z.number().min(0).max(30),
+      discountRate: z.number().min(0).max(100).multipleOf(0.01).optional(),
+      discountAmount: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
+    })
+    .refine(
+      (a) => !(a.discountRate && a.discountAmount),
+      'Choisissez une ristourne en euros ou en pourcentage.',
+    ),
   z.object({ type: z.literal('acceptEstimate'), id, evidence: text }),
   z.object({ type: z.literal('validateDocument'), id }),
   z.object({ type: z.literal('convertEstimate'), id }),
@@ -334,10 +343,15 @@ export type Action = z.infer<typeof actionSchema>;
 export const uid = () => crypto.randomUUID();
 export const money = (cents: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
-export const totals = (lines: Line[], rate: number) => {
-  const net = lines.reduce((s, l) => s + Math.round(l.quantity * l.unitPrice), 0);
+export const totals = (lines: Line[], rate: number, discountRate = 0, discountAmount = 0) => {
+  const subtotal = lines.reduce((s, l) => s + Math.round(l.quantity * l.unitPrice), 0);
+  const hundredths = Math.round(discountRate * 100);
+  // Integer arithmetic keeps half-cent discounts exact (e.g. 0.57% of EUR 50).
+  const discount =
+    discountAmount || Number((BigInt(subtotal) * BigInt(hundredths) + 5000n) / 10000n);
+  const net = subtotal - discount;
   const tax = Math.round((net * rate) / 100);
-  return { net, tax, gross: net + tax };
+  return { subtotal, discount, net, tax, gross: net + tax };
 };
 export const available = (s: GarageState, partId: string) =>
   (s.parts.find((p) => p.id === partId)?.stock ?? 0) -
@@ -583,6 +597,8 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'document': {
       vehicle(a.vehicleId);
+      if ((a.discountAmount ?? 0) > totals(a.lines, a.taxRate).subtotal)
+        throw new UserError('La ristourne dépasse le montant HT du document.');
       const n = s.documents.filter((d) => d.kind === a.kind).length + 1;
       const d: Document = {
         ...a,
@@ -629,6 +645,8 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
           kind: 'invoice',
           lines: d.lines,
           taxRate: d.taxRate,
+          discountRate: d.discountRate,
+          discountAmount: d.discountAmount,
         },
         actor,
       );
@@ -639,7 +657,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       vehicle(d.vehicleId);
       if (!d.validated && !(d.validated === undefined && d.paid > 0))
         throw new UserError('Validez la facture avant d’enregistrer un paiement.');
-      if (d.paid + a.amount > totals(d.lines, d.taxRate).gross)
+      if (d.paid + a.amount > totals(d.lines, d.taxRate, d.discountRate, d.discountAmount).gross)
         throw new UserError('Le montant dépasse le solde restant.');
       d.paid += a.amount;
       message = `${d.number} : règlement de ${money(a.amount)}`;

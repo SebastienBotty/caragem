@@ -21,7 +21,9 @@ export function DocumentsScreen({
   const docs = all.filter(
     (d) =>
       filter !== 'open' ||
-      (kind === 'invoice' ? d.paid < totals(d.lines, d.taxRate).gross : !d.accepted),
+      (kind === 'invoice'
+        ? d.paid < totals(d.lines, d.taxRate, d.discountRate, d.discountAmount).gross
+        : !d.accepted),
   );
   return (
     <>
@@ -54,7 +56,13 @@ export function DocumentsScreen({
             <span>
               Total facturé
               <strong>
-                {money(all.reduce((sum, d) => sum + totals(d.lines, d.taxRate).gross, 0))}
+                {money(
+                  all.reduce(
+                    (sum, d) =>
+                      sum + totals(d.lines, d.taxRate, d.discountRate, d.discountAmount).gross,
+                    0,
+                  ),
+                )}
               </strong>
             </span>
           </div>
@@ -67,7 +75,15 @@ export function DocumentsScreen({
             <span>
               Reste à régler
               <strong>
-                {money(all.reduce((sum, d) => sum + totals(d.lines, d.taxRate).gross - d.paid, 0))}
+                {money(
+                  all.reduce(
+                    (sum, d) =>
+                      sum +
+                      totals(d.lines, d.taxRate, d.discountRate, d.discountAmount).gross -
+                      d.paid,
+                    0,
+                  ),
+                )}
               </strong>
             </span>
           </div>
@@ -106,7 +122,7 @@ export function DocumentsScreen({
                 {docs.map((d) => {
                   const v = state.vehicles.find((v) => v.id === d.vehicleId)!;
                   const c = state.customers.find((c) => c.id === v.customerId)!;
-                  const t = totals(d.lines, d.taxRate);
+                  const t = totals(d.lines, d.taxRate, d.discountRate, d.discountAmount);
                   return (
                     <tr key={d.id}>
                       <td>
