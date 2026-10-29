@@ -1,7 +1,7 @@
 import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { Store } from '../src/server/store.ts';
+import { Store, passwordHash } from '../src/server/store.ts';
 import { scryptSync } from 'node:crypto';
 import { createApi } from '../src/server/api.ts';
 import { createRealtime } from '../src/server/realtime.ts';
@@ -85,4 +85,40 @@ test('a successful legacy password login upgrades its hash without changing the 
   assert.equal((await post('login', { email: 'legacy@example.test', password })).status, 200);
   assert.match((await store.account('legacy@example.test'))!.hash!, /^scrypt\$32768\$8\$3\$/);
   assert.equal((await post('login', { email: 'legacy@example.test', password })).status, 200);
+});
+
+test('password confirmation is limited per account across sessions without blocking other accounts', async (t) => {
+  const { store, post } = await apiServer(t);
+  const hash = await passwordHash('a password for the account');
+  const target = await store.register({
+    email: 'limited@example.test',
+    hash,
+    name: 'Limited',
+    garage: 'Limited',
+  });
+  const cookie = `carm_session=${await store.newSession(target.garageId, target.userId)}`;
+  for (let attempt = 0; attempt < 10; attempt++)
+    assert.equal(
+      (await post('password', { current: 'wrong', password: 'a replacement password' }, cookie))
+        .status,
+      400,
+    );
+  const secondCookie = `carm_session=${await store.newSession(target.garageId, target.userId)}`;
+  assert.equal(
+    (await post('password', { current: 'wrong', password: 'a replacement password' }, secondCookie))
+      .status,
+    429,
+  );
+  const other = await store.register({
+    email: 'unlimited@example.test',
+    hash,
+    name: 'Other',
+    garage: 'Other',
+  });
+  const otherCookie = `carm_session=${await store.newSession(other.garageId, other.userId)}`;
+  assert.equal(
+    (await post('password', { current: 'wrong', password: 'a replacement password' }, otherCookie))
+      .status,
+    400,
+  );
 });

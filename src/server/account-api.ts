@@ -207,6 +207,10 @@ export async function accountApi(
     return true;
   }
   if (path === '/api/password') {
+    if (!authAttemptAllowed(`reauth:${session.email ?? session.tokenHash}`, 10)) {
+      send(429, { error: 'Trop de tentatives. Réessayez dans 15 minutes.' });
+      return true;
+    }
     const input = z
       .object({ current: z.string().max(128), password: z.string().min(12).max(128) })
       .parse(body);

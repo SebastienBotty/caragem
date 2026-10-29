@@ -77,6 +77,10 @@ export function createGoogleApi(store: Store, io: Server, configuration = google
         .parse(body);
       let linkSessionHash: string | undefined;
       if (input.link) {
+        if (session && !authAttemptAllowed(`reauth:${session.email ?? session.tokenHash}`, 10)) {
+          send(429, { error: 'Trop de tentatives. Réessayez dans 15 minutes.' });
+          return true;
+        }
         const account = session?.email ? await store.account(session.email) : undefined;
         if (
           !session ||

@@ -19,3 +19,13 @@ Validation : `tests/security-api.test.ts`, ainsi que les tests API, permissions,
 Les nouveaux hashes scrypt contiennent leur version et utilisent N=32768, r=8, p=3 (configuration minimale OWASP, environ 32 Mio par calcul). Les anciens hashes sont encore vérifiés et migrent automatiquement après une connexion réussie. Une comparaison SQL protège contre l’écrasement d’un changement de mot de passe concurrent. Les formats et paramètres inattendus sont refusés.
 
 Validation : `tests/security-passwords.test.ts`, migration HTTP dans `tests/security-api.test.ts` et tests existants de comptes, Google, sessions et import. La latence est mesurée localement ; la calibration de charge sur le futur serveur reste nécessaire.
+
+## SEC-04 — Confirmation du mot de passe
+
+Les changements de mot de passe et associations Google partagent un quota de 10 tentatives par compte pendant 15 minutes, indépendant des autres comptes et des différentes sessions du même compte. Le dépassement retourne HTTP 429. Le quota expire automatiquement.
+
+Validation : régression HTTP multi-session et multi-compte, expiration avec horloge simulée et tests Google existants. Comme le compteur existant, ce quota est local au processus ; son partage entre instances sera à adapter lors du choix d’hébergement.
+
+## SEC-02 — Configuration du proxy différée
+
+À la demande de l’utilisateur, les règles d’identification réseau et la protection des connexions publiques derrière un proxy ne sont pas modifiées avant le choix de l’hébergement. Le risque d’un quota partagé via l’adresse du proxy reste donc ouvert. Aucun en-tête `X-Forwarded-For` n’est accepté aveuglément.
