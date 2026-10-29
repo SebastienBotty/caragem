@@ -4,6 +4,7 @@ import next from 'next';
 import { Store } from './src/server/store.ts';
 import { createApi } from './src/server/api.ts';
 import { createRealtime } from './src/server/realtime.ts';
+import { securityHeaders } from './src/server/http.ts';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 const dev = !process.argv.includes('--production');
@@ -15,6 +16,7 @@ const handle = app.getRequestHandler();
 const store = new Store();
 await store.ready;
 const http = createServer(async (req, res) => {
+  securityHeaders(res);
   try {
     if (!(await api(req, res))) await handle(req, res);
   } catch (error) {

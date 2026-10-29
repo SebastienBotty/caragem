@@ -29,3 +29,9 @@ Validation : régression HTTP multi-session et multi-compte, expiration avec hor
 ## SEC-02 — Configuration du proxy différée
 
 À la demande de l’utilisateur, les règles d’identification réseau et la protection des connexions publiques derrière un proxy ne sont pas modifiées avant le choix de l’hébergement. Le risque d’un quota partagé via l’adresse du proxy reste donc ouvert. Aucun en-tête `X-Forwarded-For` n’est accepté aveuglément.
+
+## SEC-08 — Interdiction des iframes
+
+Le serveur applique `Content-Security-Policy: frame-ancestors 'none'; base-uri 'self'; object-src 'none'`, `X-Frame-Options: DENY` et `X-Content-Type-Options: nosniff` aux réponses HTML et API. Les scripts Next.js et le rendu WebGL ne sont pas restreints par une politique de scripts ajoutée arbitrairement.
+
+Validation : vérification des vrais en-têtes HTTP dans `tests/security-api.test.ts`. Les réponses du frontal de production resteront à contrôler après déploiement.

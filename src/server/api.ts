@@ -5,7 +5,7 @@ import { z } from 'zod';
 import nodemailer from 'nodemailer';
 import { Store } from './store.ts';
 import { accountApi } from './account-api.ts';
-import { validOrigin } from './http.ts';
+import { securityHeaders, validOrigin } from './http.ts';
 export { validOrigin, appOrigin, cookie } from './http.ts';
 import { actionSchema, log } from '../lib/domain.ts';
 import { createGoogleApi, googleConfiguration } from './google-auth.ts';
@@ -33,7 +33,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
     const path = req.url?.split('?')[0] ?? '';
     if (!path.startsWith('/api/')) return false;
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
+    securityHeaders(res);
     const send = (status: number, data: unknown) => {
       res.statusCode = status;
       res.setHeader('Content-Type', 'application/json');

@@ -38,6 +38,14 @@ async function apiServer(t: TestContext) {
   };
 }
 
+test('HTTP responses prohibit framing without restricting application scripts or WebGL', async (t) => {
+  const { base } = await apiServer(t);
+  const response = await fetch(base + '/api/session');
+  assert.equal(response.headers.get('X-Frame-Options'), 'DENY');
+  assert.match(response.headers.get('Content-Security-Policy')!, /frame-ancestors 'none'/);
+  assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');
+});
+
 test('unexpected API exceptions are hidden while validation and business errors stay useful', async (t) => {
   const { store, post } = await apiServer(t);
   const original = store.account.bind(store);
