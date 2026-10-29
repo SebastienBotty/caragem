@@ -4,6 +4,7 @@ import { validOrigin } from './http.ts';
 import type { Store } from './store.ts';
 import type { GarageState } from '../lib/domain.ts';
 import { visibleState } from '../lib/permissions.ts';
+import { securityEvent } from './security-log.ts';
 
 export async function broadcastGarage(io: Server, state: GarageState) {
   for (const socket of await io.in(state.id).fetchSockets()) {
@@ -43,10 +44,20 @@ export function createRealtime(http: HttpServer, store: Store) {
         socket.request.headers.cookie,
         socket.handshake.auth.demoUserId,
       );
-      if (!session) return next(new Error('Session requise'));
+      if (!session) {
+        securityEvent({ event: 'socket.authentication', outcome: 'failure' });
+        return next(new Error('Session requise'));
+      }
       socket.data.session = session;
+      securityEvent({
+        event: 'socket.authentication',
+        outcome: 'success',
+        userId: session.userId,
+        garageId: session.garageId,
+      });
       next();
     } catch {
+      securityEvent({ event: 'socket.authentication', outcome: 'failure' });
       next(new Error('Connexion au garage indisponible.'));
     }
   });

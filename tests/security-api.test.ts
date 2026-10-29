@@ -46,6 +46,39 @@ test('HTTP responses prohibit framing without restricting application scripts or
   assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');
 });
 
+test('security events record authentication and internal failures without credentials or query tokens', async (t) => {
+  const logs: string[] = [];
+  t.mock.method(console, 'info', (value: string) => logs.push(value));
+  const { store, post, base } = await apiServer(t);
+  await post('login', { email: 'log@example.test', password: 'private-password-never-log' });
+  store.account = async () => {
+    throw Error('private-database-never-log');
+  };
+  const failure = await post('login', {
+    email: 'log@example.test',
+    password: 'private-password-never-log',
+  });
+  const failureBody = await failure.json();
+  await fetch(base + '/api/session?secret=private-query-never-log');
+  const events = logs.map((value) => JSON.parse(value));
+  assert.ok(
+    events.some(
+      (event) =>
+        event.route === '/api/login' && event.status === 401 && event.outcome === 'failure',
+    ),
+  );
+  assert.ok(
+    events.some((event) => event.status === 500 && event.requestId === failureBody.requestId),
+  );
+  for (const secret of [
+    'private-password-never-log',
+    'private-database-never-log',
+    'private-query-never-log',
+    'log@example.test',
+  ])
+    assert.ok(!logs.join('').includes(secret));
+});
+
 test('unexpected API exceptions are hidden while validation and business errors stay useful', async (t) => {
   const { store, post } = await apiServer(t);
   const original = store.account.bind(store);

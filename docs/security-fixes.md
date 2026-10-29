@@ -41,3 +41,13 @@ Validation : vérification des vrais en-têtes HTTP dans `tests/security-api.tes
 Le transport exige TLS : connexion implicite sur le port 465, ou STARTTLS obligatoire sur les autres ports. TLS 1.2 minimum et vérification des certificats sont explicites. Un serveur sans STARTTLS provoque un échec d’envoi ; le brouillon est conservé. Aucun contournement en clair n’est activé.
 
 Validation : le test HTTP/PDF/mail existant vérifie les options réellement transmises au transport simulé. Aucun email réel n’est envoyé ; le certificat et la disponibilité du futur serveur SMTP restent à vérifier.
+
+## SEC-07 — Journal de sécurité
+
+Les opérations POST et refus HTTP, erreurs internes, authentifications socket et résultats OAuth produisent des événements JSON indépendants de l’activité métier. Les événements contiennent horodatage, type, résultat, route normalisée, statut, identifiants internes d’acteur/garage, type d’action validé et identifiant de corrélation lorsqu’ils sont disponibles. Les erreurs internes utilisent le même identifiant que la réponse client.
+
+Une liste explicite de champs exclut corps de requête, email, mot de passe, cookie, URL complète, jetons et message d’exception. Les routes inconnues sont normalisées pour éviter de journaliser une donnée placée dans le chemin. Aucun journal de sécurité n’est exposé par l’API ni limité aux 500 événements métier.
+
+Les événements sont écrits sur stdout : le superviseur d’hébergement devra les collecter dans un stockage réservé aux exploitants, avec une rétention de 90 jours et rotation, sans les publier ni les mélanger aux fichiers web. La collecte durable, les accès et alertes restent à configurer lorsque l’hébergement sera choisi.
+
+Validation : tests des événements d’échec de connexion, corrélation des erreurs internes, absence de secrets et tests HTTP/OAuth/socket existants.

@@ -8,6 +8,7 @@ import { Store, passwordMatches, type Session, type GoogleProfile } from './stor
 import { appOrigin, cookie, type Reply } from './http.ts';
 import { authAttemptAllowed } from './auth-rate-limit.ts';
 import { broadcastGarage } from './realtime.ts';
+import { securityEvent } from './security-log.ts';
 
 const callbackPath = '/api/auth/google/callback';
 const callbackUrl = () => new URL(callbackPath, appOrigin()).href;
@@ -145,9 +146,21 @@ export function createGoogleApi(store: Store, io: Server, configuration = google
       }
       await broadcastGarage(io, await store.get(target.garageId));
       res.setHeader('Set-Cookie', [cookie(token), transactionCookie('', 0)]);
+      securityEvent({
+        event: 'google.callback',
+        outcome: 'success',
+        userId: target.userId,
+        garageId: target.garageId,
+        requestId: String(res.getHeader('X-Request-Id') ?? ''),
+      });
       res.writeHead(303, { Location: '/?google_result=success' });
       res.end();
     } catch (error) {
+      securityEvent({
+        event: 'google.callback',
+        outcome: 'failure',
+        requestId: String(res.getHeader('X-Request-Id') ?? ''),
+      });
       const code =
         error instanceof Error &&
         [

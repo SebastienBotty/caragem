@@ -3,7 +3,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Server } from 'socket.io';
 import { z } from 'zod';
 import nodemailer from 'nodemailer';
-import { Store } from './store.ts';
+import { Store, type Session } from './store.ts';
+import { securityEvent } from './security-log.ts';
 import { accountApi } from './account-api.ts';
 import { securityHeaders, validOrigin } from './http.ts';
 export { validOrigin, appOrigin, cookie } from './http.ts';
@@ -11,6 +12,28 @@ import { actionSchema, log } from '../lib/domain.ts';
 import { createGoogleApi, googleConfiguration } from './google-auth.ts';
 import { requirePermission, visibleState } from '../lib/permissions.ts';
 import { broadcastGarage } from './realtime.ts';
+const knownRoutes = new Set([
+  '/api/session',
+  '/api/invitation',
+  '/api/demo',
+  '/api/login',
+  '/api/register',
+  '/api/auth/google/status',
+  '/api/auth/google/start',
+  '/api/auth/google/callback',
+  '/api/onboarding',
+  '/api/logout',
+  '/api/demo-user',
+  '/api/garages',
+  '/api/switch-garage',
+  '/api/accept-invitation',
+  '/api/invite',
+  '/api/invitations',
+  '/api/revoke-invitation',
+  '/api/password',
+  '/api/actions',
+  '/api/send-mail',
+]);
 
 async function body(req: IncomingMessage) {
   let bytes = 0;
@@ -32,6 +55,29 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
   return async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
     const path = req.url?.split('?')[0] ?? '';
     if (!path.startsWith('/api/')) return false;
+    const requestId = crypto.randomUUID();
+    let session: Session | undefined;
+    let action: string | undefined;
+    const route = knownRoutes.has(path)
+      ? path
+      : path.startsWith('/api/document/')
+        ? '/api/document/:id'
+        : '/api/unknown';
+    res.setHeader('X-Request-Id', requestId);
+    res.once('finish', () => {
+      if (path !== '/api/auth/google/callback' && (res.statusCode >= 400 || req.method === 'POST'))
+        securityEvent({
+          event: 'http',
+          outcome: res.statusCode >= 400 ? 'failure' : 'success',
+          route,
+          method: req.method,
+          status: res.statusCode,
+          userId: session?.userId,
+          garageId: session?.garageId,
+          requestId,
+          action,
+        });
+    });
     res.setHeader('Cache-Control', 'no-store');
     securityHeaders(res);
     const send = (status: number, data: unknown) => {
@@ -46,7 +92,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       }
       // Read the complete request before taking any mutable garage snapshot.
       const inputBody = req.method === 'POST' ? await body(req) : undefined;
-      const session = await store.session(req.headers.cookie, req.headers['x-carm-demo-user']);
+      session = await store.session(req.headers.cookie, req.headers['x-carm-demo-user']);
       if (await google(req, res, path, inputBody, session, send)) return true;
       if (await accountApi(store, io, req, res, path, inputBody, session, send)) return true;
       if (!session) {
@@ -54,10 +100,13 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
         return true;
       }
       const s = await store.get(session.garageId);
-      const actor = s.users.find((u) => u.id === session.userId);
+      const userId = session.userId;
+      const actor = s.users.find((u) => u.id === userId);
       if (!actor) throw new UserError('Session invalide.');
       if (req.method === 'POST' && path === '/api/actions') {
-        const state = await store.act(session, actionSchema.parse(inputBody));
+        const input = actionSchema.parse(inputBody);
+        action = input.type;
+        const state = await store.act(session, input);
         await broadcastGarage(io, state);
         send(200, { state: visibleState(state, session.userId) });
         return true;
@@ -86,7 +135,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
             'Configurez le serveur SMTP avant d’envoyer des mails. Le brouillon est conservé.',
           );
         const { result: mailSnapshot } = await store.updateGarage(s.id, (current) => {
-          const sender = current.users.find((u) => u.id === session.userId)!;
+          const sender = current.users.find((u) => u.id === userId)!;
           requirePermission(current, sender, 'garage.view', 'customers.view', 'mail.send');
           const mail = current.mails.find((m) => m.id === input.id);
           if (!mail || mail.status === 'sent' || mail.status === 'sending')
@@ -162,7 +211,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       if (e instanceof z.ZodError)
         send(400, { error: 'Vérifiez les champs renseignés et les valeurs numériques.' });
       else if (e instanceof UserError) send(400, { error: e.message });
-      else send(500, { error: 'Une erreur interne est survenue.', requestId: crypto.randomUUID() });
+      else send(500, { error: 'Une erreur interne est survenue.', requestId });
     }
     return true;
   };

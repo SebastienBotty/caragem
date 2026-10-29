@@ -5,6 +5,7 @@ import { Store } from './src/server/store.ts';
 import { createApi } from './src/server/api.ts';
 import { createRealtime } from './src/server/realtime.ts';
 import { securityHeaders } from './src/server/http.ts';
+import { securityEvent } from './src/server/security-log.ts';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 const dev = !process.argv.includes('--production');
@@ -20,9 +21,11 @@ const http = createServer(async (req, res) => {
   try {
     if (!(await api(req, res))) await handle(req, res);
   } catch (error) {
-    console.error(error);
+    const requestId = crypto.randomUUID();
+    securityEvent({ event: 'server.error', outcome: 'failure', requestId });
     if (!res.headersSent) {
       res.statusCode = 500;
+      res.setHeader('X-Request-Id', requestId);
       res.end('Erreur serveur.');
     }
   }
