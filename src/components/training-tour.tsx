@@ -113,13 +113,34 @@ export function TrainingTour({ page, close }: { page: string; close: () => void 
   }, []);
   useEffect(() => {
     let highlighted: HTMLElement | undefined;
+    let permissionRows: HTMLElement[] = [];
     const sync = () => {
       const container = root.current;
       if (!container) return;
       const dialogs = Array.from(container.querySelectorAll<HTMLDialogElement>('dialog[open]'));
       const top = dialogs.at(-1) ?? container;
       setPortal((old) => (old === top ? old : top));
+      const editor = step?.permissions
+        ? top.querySelector(`[data-permission-editor="${step.type}"]`)
+        : null;
+      const rows = (step?.permissions ?? []).flatMap((permission) =>
+        Array.from(
+          editor?.querySelectorAll<HTMLElement>(`[data-permission="${permission}"]`) ?? [],
+        ),
+      );
+      for (const row of permissionRows)
+        if (!rows.includes(row)) row.classList.remove('training-permission-target');
+      for (const row of rows)
+        if (!row.classList.contains('training-permission-target'))
+          row.classList.add('training-permission-target');
+      permissionRows = rows;
+      const nextPermission = rows.find((row) => {
+        const input = row.querySelector<HTMLInputElement>('input[type="checkbox"]');
+        const select = row.querySelector<HTMLSelectElement>('select');
+        return input ? !input.checked : select?.value === 'inherit';
+      });
       const target =
+        nextPermission ??
         step?.target
           .split(',')
           .map((selector) => top.querySelector<HTMLElement>(selector.trim()))
@@ -139,10 +160,12 @@ export function TrainingTour({ page, close }: { page: string; close: () => void 
         highlighted?.classList.remove('training-target');
         target?.classList.add('training-target');
         highlighted = target;
+        if (nextPermission) nextPermission.scrollIntoView({ block: 'center', behavior: 'instant' });
       }
     };
     sync();
     const observer = new MutationObserver(sync);
+    root.current?.addEventListener('change', sync, true);
     if (root.current)
       observer.observe(root.current, {
         childList: true,
@@ -152,7 +175,9 @@ export function TrainingTour({ page, close }: { page: string; close: () => void 
       });
     return () => {
       observer.disconnect();
+      root.current?.removeEventListener('change', sync, true);
       highlighted?.classList.remove('training-target');
+      permissionRows.forEach((row) => row.classList.remove('training-permission-target'));
     };
   }, [step]);
   return (

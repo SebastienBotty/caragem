@@ -1602,6 +1602,15 @@ th {
   outline: 3px solid #789cf7 !important;
   outline-offset: 4px;
 }
+.training-permission-target {
+  background: #eaf1ff;
+  border-radius: 8px;
+  box-shadow: inset 4px 0 var(--blue);
+}
+.training-permission-target > span {
+  color: #234599;
+  font-weight: 700;
+}
 @media (max-width: 900px) {
   .training-banner {
     font-size: 9px;

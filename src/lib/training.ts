@@ -1,7 +1,9 @@
 import { applyAction, createSeed, uid, type Action, type GarageState } from './domain.ts';
+import type { Permission } from './permissions.ts';
 
 export type TrainingEvent = Action | { type: 'trainingInvite' | 'trainingJoin' | 'trainingSend' };
 type Step = {
+  permissions?: Permission[];
   title: string;
   text: string;
   target: string;
@@ -295,6 +297,7 @@ export function createTraining(page: string) {
       },
       {
         title: 'Créer un rôle personnalisé',
+        permissions: ['garage.view', 'tasks.work'],
         text: 'Ouvrez Permissions des rôles puis Créer un rôle. Nommez-le « Chef d’atelier », cochez Voir le garage et Prendre une tâche, puis enregistrez le rôle.',
         target: '[data-tour="team-roles"]',
         type: 'customRole',
@@ -307,6 +310,7 @@ export function createTraining(page: string) {
       },
       {
         title: 'Définir une exception individuelle',
+        permissions: ['stock.view'],
         text: 'Dans la même fiche, ouvrez Permissions individuelles. Autorisez par exemple Consulter le stock, puis enregistrez. Cette exception reste prioritaire sur les réglages du rôle.',
         target:
           '.team-card:has([aria-label="Attribuer un rôle à Nouveau collègue"]) [data-tour="team-permissions"]',

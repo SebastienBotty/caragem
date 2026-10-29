@@ -24,6 +24,8 @@ Chaque onglet possède aussi un bouton **Visite guidée** en bas à droite. Il o
 
 L’exercice utilise un patron fictif pour permettre de tester les actions sans changer les permissions réelles. Il ne copie pas les données du garage, n’utilise ni API ni sockets, n’envoie aucun mail et ne crée aucun compte. Les invitations et leurs acceptations sont simulées ; le téléchargement de PDF est désactivé. Quitter efface l’exercice et retrouve le garage réel, ses recherches et filtres inchangés. Le bouton du menu conserve la visite générale de première prise en main.
 
+Dans l’exercice des permissions, les réglages demandés sont surlignés dans leur formulaire. Le guide fait défiler la liste vers la prochaine permission à sélectionner, puis vers l’exception individuelle demandée, sans modifier les valeurs à la place de l’utilisateur.
+
 Avant chaque changement d’écran, le guide met d’abord en évidence le bouton du menu qui permet d’y accéder. L’utilisateur clique sur ce bouton ou confirme son ouverture depuis la carte du guide, puis découvre le contenu de la rubrique. Sur mobile, le menu s’ouvre automatiquement pour montrer ce chemin.
 
 Le guide peut être relancé depuis **Visite guidée** dans la barre latérale, y compris depuis le menu sur mobile. Sa fermeture est mémorisée en PostgreSQL sur le compte personnel, pour tous ses garages et appareils ; en démonstration, elle est mémorisée par profil. Si l’enregistrement échoue, le guide se ferme et un message prévient qu’il pourra réapparaître à la prochaine connexion.

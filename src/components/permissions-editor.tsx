@@ -45,7 +45,7 @@ export function RolePermissionsEditor({
           {permissions
             .filter((p) => p.group === group)
             .map((p) => (
-              <div className="permission-row" key={p.id}>
+              <div className="permission-row" data-permission={p.id} key={p.id}>
                 <span>{p.label}</span>
                 {roles.map((role) => (
                   <input
@@ -158,14 +158,14 @@ function CustomRoleDialog({ role, close }: { role?: CustomRole; close: () => voi
           Les permissions non cochées sont interdites. Autorisez aussi la consultation d’une
           catégorie pour permettre ses actions. Seul le patron gère les rôles.
         </p>
-        <div className="permissions-editor">
+        <div className="permissions-editor" data-permission-editor="customRole">
           {groups.map((group) => (
             <fieldset key={group}>
               <legend>{group}</legend>
               {permissions
                 .filter((p) => p.group === group)
                 .map((p) => (
-                  <label className="permission-individual" key={p.id}>
+                  <label className="permission-individual" data-permission={p.id} key={p.id}>
                     <span>{p.label}</span>
                     <input
                       type="checkbox"
@@ -230,14 +230,14 @@ export function UserPermissionsDialog({ member, close }: { member: User; close: 
           close();
         }}
       >
-        <div className="permissions-editor">
+        <div className="permissions-editor" data-permission-editor="userPermissions">
           {groups.map((group) => (
             <fieldset key={group}>
               <legend>{group}</legend>
               {permissions
                 .filter((p) => p.group === group)
                 .map((p) => (
-                  <label className="permission-individual" key={p.id}>
+                  <label className="permission-individual" data-permission={p.id} key={p.id}>
                     <span>{p.label}</span>
                     <select
                       aria-label={p.label}

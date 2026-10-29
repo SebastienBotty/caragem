@@ -82,6 +82,13 @@ test('a real reducer drives the complete fictitious vehicle workflow and validat
 
 test('team and document exercises advance on concrete operations, not unrelated actions', () => {
   const team = createTraining('team');
+  assert.deepEqual(team.steps.find((step) => step.type === 'customRole')?.permissions, [
+    'garage.view',
+    'tasks.work',
+  ]);
+  assert.deepEqual(team.steps.find((step) => step.type === 'userPermissions')?.permissions, [
+    'stock.view',
+  ]);
   const events: TrainingEvent[] = [
     { type: 'trainingInvite' },
     { type: 'trainingJoin' },
