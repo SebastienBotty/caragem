@@ -13,3 +13,9 @@ Validation : `tests/security-invitations.test.ts` et tests existants de comptes,
 Les erreurs métier explicitement classées `UserError` et les erreurs de validation restent présentables avec HTTP 400. Les exceptions inattendues renvoient HTTP 500 avec un message générique et un identifiant de corrélation, sans contenu PostgreSQL ni secret.
 
 Validation : `tests/security-api.test.ts`, ainsi que les tests API, permissions, domaine et Google.
+
+## SEC-05 — Hashes de mots de passe
+
+Les nouveaux hashes scrypt contiennent leur version et utilisent N=32768, r=8, p=3 (configuration minimale OWASP, environ 32 Mio par calcul). Les anciens hashes sont encore vérifiés et migrent automatiquement après une connexion réussie. Une comparaison SQL protège contre l’écrasement d’un changement de mot de passe concurrent. Les formats et paramètres inattendus sont refusés.
+
+Validation : `tests/security-passwords.test.ts`, migration HTTP dans `tests/security-api.test.ts` et tests existants de comptes, Google, sessions et import. La latence est mesurée localement ; la calibration de charge sur le futur serveur reste nécessaire.

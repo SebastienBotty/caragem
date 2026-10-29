@@ -1,7 +1,6 @@
 import { UserError } from '../lib/errors.ts';
 import { readFileSync } from 'node:fs';
-import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-import { promisify } from 'node:util';
+import { createHash, randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from 'node:crypto';
 import {
   applyAction,
   createSeed,
@@ -13,16 +12,24 @@ import {
 } from '../lib/domain.ts';
 import { postgresDatabase, type Database, type Sql } from './database.ts';
 import { can, permissions, requirePermission } from '../lib/permissions.ts';
-const scryptAsync = promisify(scrypt);
+function scryptAsync(password: string, salt: string, length: number, options: ScryptOptions) {
+  return new Promise<Buffer>((resolve, reject) => {
+    scrypt(password, salt, length, options, (error, key) => (error ? reject(error) : resolve(key)));
+  });
+}
+const passwordOptions = { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
 export async function passwordHash(password: string) {
   const salt = randomBytes(16).toString('hex');
-  return `${salt}:${((await scryptAsync(password, salt, 64)) as Buffer).toString('hex')}`;
+  return `scrypt$32768$8$3$${salt}$${((await scryptAsync(password, salt, 64, passwordOptions)) as Buffer).toString('hex')}`;
 }
 export async function passwordMatches(password: string, hash: string | null) {
   if (!hash) return false;
-  const [salt, key] = hash.split(':');
-  if (!salt || !key) return false;
-  const actual = (await scryptAsync(password, salt, 64)) as Buffer;
+  const current = /^scrypt\$32768\$8\$3\$([a-f0-9]{32})\$([a-f0-9]{128})$/.exec(hash);
+  const legacy = /^([a-f0-9]{32}):([a-f0-9]{128})$/.exec(hash);
+  const match = current ?? legacy;
+  if (!match) return false;
+  const [, salt, key] = match;
+  const actual = (await scryptAsync(password, salt, 64, current ? passwordOptions : {})) as Buffer;
   const expected = Buffer.from(key, 'hex');
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
@@ -134,6 +141,18 @@ export class Store {
         sql,
       )
     )[0];
+  }
+  async upgradePassword(email: string, previous: string, hash: string) {
+    // Do not overwrite a concurrent password change with the legacy login's hash.
+    return (
+      (
+        await this.rows('UPDATE accounts SET hash=$1 WHERE email=$2 AND hash=$3 RETURNING email', [
+          hash,
+          email,
+          previous,
+        ])
+      ).length === 1
+    );
   }
   async garages(email: string): Promise<GarageAccess[]> {
     await this.ready;

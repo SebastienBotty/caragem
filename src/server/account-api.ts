@@ -117,6 +117,18 @@ export async function accountApi(
           send(401, { error: 'Adresse mail ou mot de passe incorrect.' });
           return true;
         }
+        if (
+          account.hash &&
+          !account.hash.startsWith('scrypt$') &&
+          !(await store.upgradePassword(
+            account.email,
+            account.hash,
+            await passwordHash(input.password),
+          ))
+        ) {
+          send(401, { error: 'Adresse mail ou mot de passe incorrect.' });
+          return true;
+        }
         if (input.invitation) {
           target = await store.joinGarage(account.email, input.invitation);
           await broadcast(target.garageId);
