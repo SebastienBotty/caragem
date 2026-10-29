@@ -43,6 +43,8 @@ export function VehicleForm({
               color: value(f, 'color'),
               due: new Date(value(f, 'due')).toISOString(),
               priority: f.get('priority') === 'on',
+              estimatedMinutes:
+                value(f, 'estimatedMinutes') === '' ? undefined : number(f, 'estimatedMinutes'),
             });
             close();
           }}
@@ -148,6 +150,12 @@ export function VehicleForm({
               required
               defaultValue={localDateInput(new Date(Date.now() + 86400000))}
             />
+          </Field>
+          <Field
+            label="Temps de travail prévu (minutes)"
+            hint="Facultatif : durée estimée du travail initial, distincte de la date de restitution."
+          >
+            <input name="estimatedMinutes" type="number" min={0} max={100000} />
           </Field>
           <label className="check-field">
             <input name="priority" type="checkbox" /> Intervention prioritaire

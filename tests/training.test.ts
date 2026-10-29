@@ -63,6 +63,7 @@ test('a real reducer drives the complete fictitious vehicle workflow and validat
     taskId = state.vehicles[0].tasks[0].id;
   perform({ type: 'stage', id: vehicleId, stage: 'diagnosis' });
   perform({ type: 'stage', id: vehicleId, stage: 'waiting' });
+  perform({ type: 'estimateTask', vehicleId, taskId, minutes: 45 });
   perform({ type: 'task', vehicleId, taskId, operation: 'assign', assignees: [state.users[1].id] });
   perform({ type: 'task', vehicleId, taskId, operation: 'start' });
   perform({ type: 'reserve', vehicleId, partId: state.parts[0].id, quantity: 1 });

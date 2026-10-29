@@ -21,6 +21,12 @@ export function matchesTrainingStep(step: Step, event: TrainingEvent) {
 
 const maintenance: Step[] = [
   {
+    title: 'Estimer l’entretien',
+    text: 'Ouvrez le dossier de la voiture fictive. Dans la tâche d’entretien, cliquez sur Temps prévu, saisissez 45 minutes et enregistrez l’estimation. Elle restera distincte du temps réellement saisi à la fin.',
+    target: '[aria-label^="Estimer "], .vehicle-mini-card, [title="Ouvrir le dossier"]',
+    type: 'estimateTask',
+  },
+  {
     title: 'Attribuer l’entretien',
     text: 'Ouvrez la voiture fictive, puis, dans Travaux, cliquez sur le bouton « Attribuer les intervenants » de la tâche. Cochez Alex et enregistrez. Vous pouvez choisir plusieurs mécaniciens.',
     target:
@@ -248,11 +254,11 @@ export function createTraining(page: string) {
         type: 'receive',
       },
       {
-        ...maintenance[2],
+        ...maintenance.find((step) => step.type === 'reserve')!,
         text: 'Ouvrez Véhicules dans le menu, puis le dossier TEST-001. Dans Pièces, cliquez sur Réserver, sélectionnez une référence et une quantité, puis enregistrez.',
         target: '[data-tour-nav="vehicles"], .drawer-tabs',
       },
-      maintenance[3],
+      maintenance.find((step) => step.type === 'consume')!,
     ];
   }
   if (page === 'messages') {

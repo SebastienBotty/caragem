@@ -63,6 +63,7 @@ export type Task = {
   assignees: string[];
   status: 'todo' | 'doing' | 'done';
   minutes: number;
+  estimatedMinutes?: number;
 };
 export const blockageKinds = [
   { id: 'approval', label: 'Accord client' },
@@ -227,6 +228,7 @@ export const actionSchema = z.discriminatedUnion('type', [
     color,
     due: date,
     priority: z.boolean(),
+    estimatedMinutes: z.number().int().min(0).max(100000).optional(),
   }),
   z.object({ type: z.literal('stage'), id, stage }),
   z.object({ type: z.literal('vehicleColor'), id, color }),
@@ -244,7 +246,19 @@ export const actionSchema = z.discriminatedUnion('type', [
     id,
     text: z.string().trim().min(1).max(4000),
   }),
-  z.object({ type: z.literal('addTask'), vehicleId: id, title: text, photoId: id.optional() }),
+  z.object({
+    type: z.literal('addTask'),
+    vehicleId: id,
+    title: text,
+    photoId: id.optional(),
+    estimatedMinutes: z.number().int().min(0).max(100000).optional(),
+  }),
+  z.object({
+    type: z.literal('estimateTask'),
+    vehicleId: id,
+    taskId: id,
+    minutes: z.number().int().min(0).max(100000).optional(),
+  }),
   z.object({
     type: z.literal('task'),
     vehicleId: id,
@@ -453,8 +467,9 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
           0,
           ...s.vehicles.filter((v) => plateKey(v.plate) === plateKey(plate)).map((v) => v.visit),
         ) + 1;
+      const { estimatedMinutes, ...arrival } = a;
       s.vehicles.push({
-        ...a,
+        ...arrival,
         id: uid(),
         plate,
         model: existing?.model ?? a.model,
@@ -467,6 +482,7 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
             assignees: [],
             status: 'todo',
             minutes: 0,
+            estimatedMinutes,
           },
         ],
         notes: [],
@@ -540,8 +556,18 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
         status: 'todo',
         assignees: [],
         minutes: 0,
+        estimatedMinutes: a.estimatedMinutes,
       });
       message = `Travail ajouté sur ${v.plate} : ${a.title}`;
+      break;
+    }
+    case 'estimateTask': {
+      const v = activeVehicle(a.vehicleId);
+      if (v.stage === 'ready')
+        throw new UserError('Replacez le véhicule en atelier pour modifier les estimations.');
+      const task = requireItem(v.tasks, a.taskId);
+      task.estimatedMinutes = a.minutes;
+      message = `${v.plate} · ${task.title} : temps prévu ${a.minutes === undefined ? 'à estimer' : `${a.minutes} min`}`;
       break;
     }
     case 'task': {

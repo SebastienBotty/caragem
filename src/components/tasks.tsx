@@ -20,6 +20,7 @@ export function TaskCard({
   const { state, user, act, notify, can } = useGarage();
   const [assign, setAssign] = useState(false);
   const [finish, setFinish] = useState(false);
+  const [estimate, setEstimate] = useState(false);
   const [busy, setBusy] = useState(false);
   const managed = can('tasks.manage');
   const work = can('tasks.work');
@@ -140,7 +141,49 @@ export function TaskCard({
             )}
           </div>
         </div>
+        <div className="task-time-plan">
+          <span>
+            Prévu :{' '}
+            {task.estimatedMinutes === undefined ? 'à estimer' : `${task.estimatedMinutes} min`} ·
+            Passé saisi : {task.minutes} min
+          </span>
+          {managed && editable && (
+            <Button aria-label={`Estimer ${task.title}`} onClick={() => setEstimate(true)}>
+              Temps prévu
+            </Button>
+          )}
+        </div>
       </div>
+      {estimate && managed && (
+        <Modal title="Estimer le travail" subtitle={task.title} close={() => setEstimate(false)}>
+          <Form
+            label="Enregistrer l’estimation"
+            onSubmit={async (f) => {
+              const raw = f.get('estimatedMinutes');
+              await act({
+                type: 'estimateTask',
+                vehicleId: vehicle.id,
+                taskId: task.id,
+                minutes: raw === '' || raw === null ? undefined : Number(raw),
+              });
+              setEstimate(false);
+            }}
+          >
+            <Field
+              label="Temps prévu (minutes)"
+              hint="Laissez vide si la durée n’est pas encore connue."
+            >
+              <input
+                name="estimatedMinutes"
+                type="number"
+                min={0}
+                max={100000}
+                defaultValue={task.estimatedMinutes ?? ''}
+              />
+            </Field>
+          </Form>
+        </Modal>
+      )}
       {assign && managed && (
         <Modal title="Attribuer les travaux" subtitle={task.title} close={() => setAssign(false)}>
           <Form

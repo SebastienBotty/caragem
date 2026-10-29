@@ -260,6 +260,7 @@ export function actionPermissions(action: Action): Permission[] {
     case 'note':
       return ['garage.view', 'vehicles.edit'];
     case 'addTask':
+    case 'estimateTask':
       return ['garage.view', 'tasks.manage'];
     case 'task':
       return ['garage.view', action.operation === 'assign' ? 'tasks.manage' : 'tasks.work'];

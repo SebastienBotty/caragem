@@ -24,6 +24,7 @@ import { ReturnVisit } from './forms';
 import { VehicleColor } from './vehicle-color';
 import { VehicleBlocker } from './vehicle-blocker';
 import { VehiclePhotos } from './vehicle-photos';
+import { VehicleTimeSummary } from './vehicle-time-summary';
 
 export function VehicleDrawer({ id, close }: { id: string; close: () => void }) {
   const { state, can, act, notify } = useGarage();
@@ -163,6 +164,7 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
             {tab === 'photos' && <VehiclePhotos vehicle={v} />}
             {tab === 'work' && (
               <>
+                <VehicleTimeSummary vehicle={v} />
                 <div className="drawer-section-title">
                   <h3>Travaux à réaliser</h3>
                   <span>
@@ -483,6 +485,8 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
                 type: 'addTask',
                 vehicleId: v.id,
                 title: value(f, 'title'),
+                estimatedMinutes:
+                  value(f, 'estimatedMinutes') === '' ? undefined : number(f, 'estimatedMinutes'),
               });
               setDialog('');
             }}
@@ -494,6 +498,9 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
                 maxLength={200}
                 placeholder="Contrôle final, remplacement du filtre…"
               />
+            </Field>
+            <Field label="Temps prévu (minutes)">
+              <input name="estimatedMinutes" type="number" min={0} max={100000} />
             </Field>
           </Form>
         </Modal>
