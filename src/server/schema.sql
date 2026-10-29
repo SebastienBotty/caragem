@@ -25,3 +25,4 @@ CREATE TABLE IF NOT EXISTS invitations (
   id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, garage_id TEXT NOT NULL REFERENCES garages(id), email TEXT NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('mechanic','reception')), expires BIGINT NOT NULL, UNIQUE(garage_id,email)
 );
+ALTER TABLE invitations ADD COLUMN IF NOT EXISTS custom_role_id TEXT;

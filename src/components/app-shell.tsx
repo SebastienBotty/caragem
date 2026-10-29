@@ -39,6 +39,7 @@ import {
 import { Dashboard } from './dashboard';
 import { GarageSwitcher } from './garage-switcher';
 import type { Permission } from '@/lib/permissions';
+import { roleLabel } from '@/lib/permissions';
 import { OnboardingTour } from './onboarding-tour';
 const pagePermissions: Record<string, Permission> = {
   garage: 'garage.view',
@@ -194,13 +195,7 @@ export function AppShell() {
             <Avatar name={user.name} color={user.color} />
             <div>
               <strong>{user.name}</strong>
-              <small>
-                {user.role === 'owner'
-                  ? 'Responsable du garage'
-                  : user.role === 'mechanic'
-                    ? 'Mécanicien'
-                    : 'Accueil'}
-              </small>
+              <small>{roleLabel(state, user)}</small>
             </div>
             <button
               className="icon-button"
@@ -272,7 +267,7 @@ export function AppShell() {
                     <Avatar name={u.name} color={u.color} small />
                     <span>
                       {u.name}
-                      <small>{u.role === 'owner' ? 'Responsable' : 'Mécanicien'}</small>
+                      <small>{roleLabel(state, u)}</small>
                     </span>
                     {u.id === user.id && <Check size={15} />}
                   </button>

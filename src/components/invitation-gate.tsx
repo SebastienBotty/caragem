@@ -14,14 +14,14 @@ export function InvitationGate({
   done: () => Promise<void>;
 }) {
   const email = new URLSearchParams(window.location.search).get('email') ?? '';
-  const [invite, setInvite] = useState<{ email: string; garage: string; role: string } | null>(
+  const [invite, setInvite] = useState<{ email: string; garage: string; roleName: string } | null>(
     null,
   );
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     let active = true;
-    request<{ email: string; garage: string; role: string }>(
+    request<{ email: string; garage: string; roleName: string }>(
       `invitation?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`,
     )
       .then((value) => {
@@ -42,8 +42,7 @@ export function InvitationGate({
         <h1>{invite ? invite.garage : 'Votre invitation'}</h1>
         {invite && (
           <p>
-            Invitation pour <strong>{invite.email}</strong> en tant que{' '}
-            {invite.role === 'mechanic' ? 'mécanicien' : 'collaborateur à l’accueil'}.
+            Invitation pour <strong>{invite.email}</strong> en tant que {invite.roleName}.
           </p>
         )}
         {account && <p>Compte connecté : {account.email}</p>}

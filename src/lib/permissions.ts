@@ -175,6 +175,12 @@ export const permissions = [
 export type Permission = (typeof permissions)[number]['id'];
 export type PermissionOverrides = Partial<Record<Permission, boolean>>;
 export type RolePermissions = Partial<Record<'mechanic' | 'reception', PermissionOverrides>>;
+export type CustomRole = {
+  id: string;
+  name: string;
+  baseRole: 'mechanic' | 'reception';
+  permissions: PermissionOverrides;
+};
 export const permissionSchema = z.enum(permissions.map((p) => p.id));
 export const permissionOverridesSchema = z.partialRecord(permissionSchema, z.boolean());
 export const rolePermissionsSchema = z
@@ -206,11 +212,22 @@ const prerequisites: Partial<Record<Permission, Permission[]>> = {
 
 export function can(state: GarageState, user: User, permission: Permission): boolean {
   if (user.role === 'owner') return true;
+  const custom = state.settings.customRoles?.find((r) => r.id === user.customRoleId);
   const granted =
     user.permissions?.[permission] ??
-    state.settings.rolePermissions?.[user.role]?.[permission] ??
-    permissions.find((p) => p.id === permission)![user.role];
+    (user.customRoleId
+      ? (custom?.permissions[permission] ?? false)
+      : (state.settings.rolePermissions?.[user.role]?.[permission] ??
+        permissions.find((p) => p.id === permission)![user.role]));
   return granted && (prerequisites[permission] ?? []).every((p) => can(state, user, p));
+}
+
+export function roleLabel(state: GarageState, user: Pick<User, 'role' | 'customRoleId'>) {
+  if (user.role === 'owner') return 'Responsable';
+  return (
+    state.settings.customRoles?.find((r) => r.id === user.customRoleId)?.name ??
+    (user.role === 'mechanic' ? 'Mécanicien' : 'Accueil')
+  );
 }
 
 export function requirePermission(state: GarageState, user: User, ...required: Permission[]) {
@@ -225,6 +242,8 @@ export function actionPermissions(action: Action): Permission[] {
       return ['garage.configure'];
     case 'rolePermissions':
     case 'userPermissions':
+    case 'customRole':
+    case 'assignRole':
       return [];
     case 'customer':
       return ['customers.view', 'customers.manage'];

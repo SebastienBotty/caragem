@@ -5,10 +5,11 @@ import {
   can,
   type RolePermissions,
   type PermissionOverrides,
+  type CustomRole,
 } from '@/lib/permissions';
 import type { User } from '@/lib/domain';
 import { useGarage } from './provider';
-import { Form, Modal } from './ui';
+import { Button, Field, Form, Modal, value as formValue } from './ui';
 
 const roles = [
   { id: 'mechanic', label: 'Mécanicien' },
@@ -74,6 +75,14 @@ export function RolePermissionsEditor({
 export function RolePermissionsDialog({ close }: { close: () => void }) {
   const { state, act } = useGarage();
   const [value, setValue] = useState<RolePermissions>(state.settings.rolePermissions ?? {});
+  const [editing, setEditing] = useState<CustomRole | 'new' | null>(null);
+  if (editing)
+    return (
+      <CustomRoleDialog
+        role={editing === 'new' ? undefined : editing}
+        close={() => setEditing(null)}
+      />
+    );
   return (
     <Modal
       wide
@@ -81,6 +90,27 @@ export function RolePermissionsDialog({ close }: { close: () => void }) {
       subtitle="Ces réglages s’appliquent aux membres actuels et aux prochaines invitations."
       close={close}
     >
+      <section className="settings-card">
+        <h3>Rôles personnalisés</h3>
+        <p>
+          Créez vos rôles puis attribuez-les dans Équipe. Les permissions individuelles restent
+          prioritaires.
+        </p>
+        {(state.settings.customRoles ?? []).map((role) => (
+          <div className="pending-invitation" key={role.id}>
+            <span>
+              <strong>{role.name}</strong>
+              <small>
+                {state.users.filter((u) => u.customRoleId === role.id).length} membre(s)
+              </small>
+            </span>
+            <Button aria-label={`Modifier ${role.name}`} onClick={() => setEditing(role)}>
+              Modifier
+            </Button>
+          </div>
+        ))}
+        <Button onClick={() => setEditing('new')}>Créer un rôle</Button>
+      </section>
       <Form
         label="Enregistrer les permissions"
         onSubmit={async () => {
@@ -89,6 +119,95 @@ export function RolePermissionsDialog({ close }: { close: () => void }) {
         }}
       >
         <RolePermissionsEditor value={value} onChange={setValue} />
+      </Form>
+    </Modal>
+  );
+}
+
+function CustomRoleDialog({ role, close }: { role?: CustomRole; close: () => void }) {
+  const { act } = useGarage();
+  const [value, setValue] = useState<PermissionOverrides>(role?.permissions ?? {});
+  return (
+    <Modal wide title={role ? `Modifier ${role.name}` : 'Créer un rôle'} close={close}>
+      <Form
+        label="Enregistrer le rôle"
+        onSubmit={async (f) => {
+          await act({
+            type: 'customRole',
+            ...(role ? { id: role.id } : {}),
+            name: formValue(f, 'name'),
+            baseRole: formValue(f, 'baseRole') as CustomRole['baseRole'],
+            permissions: value,
+          });
+          close();
+        }}
+      >
+        <Field label="Nom du rôle">
+          <input name="name" required maxLength={60} defaultValue={role?.name} />
+        </Field>
+        <Field
+          label="Fonction dans le garage"
+          hint="Détermine la présence dans l’atelier 3D. Les accès dépendent uniquement des permissions choisies ci-dessous."
+        >
+          <select name="baseRole" defaultValue={role?.baseRole ?? 'mechanic'}>
+            <option value="mechanic">Mécanicien</option>
+            <option value="reception">Accueil</option>
+          </select>
+        </Field>
+        <p className="muted">
+          Les permissions non cochées sont interdites. Autorisez aussi la consultation d’une
+          catégorie pour permettre ses actions. Seul le patron gère les rôles.
+        </p>
+        <div className="permissions-editor">
+          {groups.map((group) => (
+            <fieldset key={group}>
+              <legend>{group}</legend>
+              {permissions
+                .filter((p) => p.group === group)
+                .map((p) => (
+                  <label className="permission-individual" key={p.id}>
+                    <span>{p.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={value[p.id] ?? false}
+                      onChange={(e) => setValue({ ...value, [p.id]: e.target.checked })}
+                    />
+                  </label>
+                ))}
+            </fieldset>
+          ))}
+        </div>
+      </Form>
+    </Modal>
+  );
+}
+
+export function AssignRoleDialog({ member, close }: { member: User; close: () => void }) {
+  const { state, act } = useGarage();
+  return (
+    <Modal
+      title={`Rôle de ${member.name}`}
+      subtitle="Les exceptions de permissions individuelles sont conservées lors du changement de rôle."
+      close={close}
+    >
+      <Form
+        label="Attribuer le rôle"
+        onSubmit={async (f) => {
+          await act({ type: 'assignRole', userId: member.id, roleId: formValue(f, 'roleId') });
+          close();
+        }}
+      >
+        <Field label="Rôle">
+          <select name="roleId" defaultValue={member.customRoleId ?? member.role}>
+            <option value="mechanic">Mécanicien</option>
+            <option value="reception">Accueil</option>
+            {state.settings.customRoles?.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </Field>
       </Form>
     </Modal>
   );

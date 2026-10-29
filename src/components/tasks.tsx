@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Check, Play, UserPlus, Users, Clock3, RotateCcw, ArrowUpRight } from 'lucide-react';
 import type { Task, Vehicle } from '@/lib/domain';
+import { roleLabel } from '@/lib/permissions';
 import { useGarage } from './provider';
 import { Avatar, Badge, Button, Empty, Field, Form, Modal, number } from './ui';
 
@@ -159,13 +160,7 @@ export function TaskCard({
                 <Avatar name={u.name} color={u.color} />
                 <span>
                   <strong>{u.name}</strong>
-                  <small>
-                    {u.role === 'owner'
-                      ? 'Responsable'
-                      : u.role === 'reception'
-                        ? 'Accueil'
-                        : 'Mécanicien'}
-                  </small>
+                  <small>{roleLabel(state, u)}</small>
                 </span>
                 <input
                   name="assignees"

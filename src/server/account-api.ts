@@ -5,7 +5,7 @@ import { Store, passwordHash, passwordMatches, type Session } from './store.ts';
 import { appOrigin, cookie, type Reply } from './http.ts';
 import type { ServerResponse } from 'node:http';
 import { authAttemptAllowed } from './auth-rate-limit.ts';
-import { visibleState } from '../lib/permissions.ts';
+import { visibleState, roleLabel } from '../lib/permissions.ts';
 import { broadcastGarage } from './realtime.ts';
 const credentials = z.object({
   email: z
@@ -72,10 +72,15 @@ export async function accountApi(
     const invite = await store.invitation(input.token, input.email);
     if (!invite)
       throw new Error('Invitation invalide ou expirée. Demandez un nouveau lien au responsable.');
+    const garage = await store.get(invite.garage_id);
     send(200, {
       email: invite.email,
-      garage: (await store.get(invite.garage_id)).settings.name,
+      garage: garage.settings.name,
       role: invite.role,
+      roleName: roleLabel(garage, {
+        role: invite.role,
+        customRoleId: invite.custom_role_id ?? undefined,
+      }),
       expires: invite.expires,
     });
     return true;
@@ -168,9 +173,13 @@ export async function accountApi(
   }
   if (path === '/api/invite') {
     const input = z
-      .object({ email: z.email().max(254), role: z.enum(['mechanic', 'reception']) })
+      .object({
+        email: z.email().max(254),
+        role: z.enum(['mechanic', 'reception']),
+        customRoleId: z.string().min(1).max(100).optional(),
+      })
       .parse(body);
-    const token = await store.invite(session, input.email, input.role);
+    const token = await store.invite(session, input.email, input.role, input.customRoleId);
     send(200, {
       url: `${appOrigin()}/?invitation=${token}&email=${encodeURIComponent(input.email)}`,
     });

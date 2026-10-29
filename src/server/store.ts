@@ -54,6 +54,7 @@ type Invitation = {
   garage_id: string;
   email: string;
   role: 'mechanic' | 'reception';
+  custom_role_id: string | null;
   expires: number;
 };
 export type GarageAccess = { id: string; name: string; userId: string; role: User['role'] };
@@ -101,19 +102,24 @@ export class Store {
       [state.id, JSON.stringify(state)],
     );
   }
-  async updateGarage<T>(id: string, change: (state: GarageState) => T | Promise<T>) {
+  async updateGarage<T>(id: string, change: (state: GarageState, sql: Sql) => T | Promise<T>) {
     return this.atomic(async (sql) => {
       const state = await this.get(id, sql, true);
-      const result = await change(state);
+      const result = await change(state, sql);
       await this.save(state, sql);
       return { state, result };
     });
   }
   async act(session: Session, action: Action) {
-    const { state } = await this.updateGarage(session.garageId, (s) => {
+    const { state } = await this.updateGarage(session.garageId, async (s, sql) => {
       const user = s.users.find((u) => u.id === session.userId);
       if (!user) throw new Error('Session invalide.');
       Object.assign(s, applyAction(s, action, user));
+      if (action.type === 'assignRole' || action.type === 'customRole')
+        await sql.query(
+          'UPDATE memberships m SET role=u.role FROM jsonb_to_recordset($2::jsonb) AS u(id text, role text) WHERE m.garage_id=$1 AND m.user_id=u.id AND m.role<>u.role',
+          [s.id, JSON.stringify(s.users)],
+        );
     });
     return state;
   }
@@ -278,7 +284,16 @@ export class Store {
       const state = await this.get(invite.garage_id, sql, true);
       const account = await this.account(email, sql);
       if (!account) throw new Error('Compte introuvable.');
-      const user: User = { id: uid(), name: account.name, role: invite.role, color: '#8b78b7' };
+      const role = state.settings.customRoles?.find((r) => r.id === invite.custom_role_id);
+      if (invite.custom_role_id && !role)
+        throw new Error('Le rôle de cette invitation n’existe plus.');
+      const user: User = {
+        id: uid(),
+        name: account.name,
+        role: role?.baseRole ?? invite.role,
+        color: '#8b78b7',
+        ...(role ? { customRoleId: role.id } : {}),
+      };
       state.users.push(user);
       state.revision++;
       log(state, `${user.name} a rejoint l’équipe`, account.name);
@@ -287,7 +302,7 @@ export class Store {
         email,
         state.id,
         user.id,
-        invite.role,
+        user.role,
       ]);
       userId = user.id;
     }
@@ -372,7 +387,7 @@ export class Store {
   async revokeSessionHash(hash: string) {
     await this.db.query('DELETE FROM sessions WHERE token_hash=$1', [hash]);
   }
-  async invite(session: Session, email: string, role: User['role']) {
+  async invite(session: Session, email: string, role: User['role'], customRoleId?: string) {
     const state = await this.get(session.garageId);
     requirePermission(
       state,
@@ -380,6 +395,11 @@ export class Store {
       'team.invite',
     );
     if (role !== 'mechanic' && role !== 'reception') throw new Error('Rôle invalide.');
+    if (customRoleId) {
+      const custom = state.settings.customRoles?.find((r) => r.id === customRoleId);
+      if (!custom) throw new Error('Rôle introuvable dans ce garage.');
+      role = custom.baseRole;
+    }
     email = email.toLowerCase();
     if (
       (
@@ -392,8 +412,16 @@ export class Store {
       throw new Error('Cette personne fait déjà partie du garage.');
     const token = randomBytes(24).toString('hex');
     await this.db.query(
-      'INSERT INTO invitations(id,token_hash,garage_id,email,role,expires) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(garage_id,email) DO UPDATE SET token_hash=excluded.token_hash,role=excluded.role,expires=excluded.expires',
-      [uid(), digest(token), state.id, email, role, Date.now() + 7 * 86400000],
+      'INSERT INTO invitations(id,token_hash,garage_id,email,role,expires,custom_role_id) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(garage_id,email) DO UPDATE SET token_hash=excluded.token_hash,role=excluded.role,expires=excluded.expires,custom_role_id=excluded.custom_role_id',
+      [
+        uid(),
+        digest(token),
+        state.id,
+        email,
+        role,
+        Date.now() + 7 * 86400000,
+        customRoleId ?? null,
+      ],
     );
     return token;
   }
@@ -401,7 +429,7 @@ export class Store {
     await this.ready;
     return (
       await this.rows<Invitation>(
-        'SELECT id,garage_id,email,role,expires::float8 AS expires FROM invitations WHERE token_hash=$1 AND email=$2 AND expires>$3',
+        'SELECT id,garage_id,email,role,custom_role_id,expires::float8 AS expires FROM invitations WHERE token_hash=$1 AND email=$2 AND expires>$3',
         [digest(token), email.toLowerCase(), Date.now()],
       )
     )[0];
@@ -413,8 +441,14 @@ export class Store {
       state.users.find((u) => u.id === session.userId)!,
       'team.invite',
     );
-    return this.rows<{ id: string; email: string; role: string; expires: number }>(
-      'SELECT id,email,role,expires::float8 AS expires FROM invitations WHERE garage_id=$1 AND expires>$2 ORDER BY expires DESC',
+    return this.rows<{
+      id: string;
+      email: string;
+      role: string;
+      customRoleId: string | null;
+      expires: number;
+    }>(
+      'SELECT id,email,role,custom_role_id AS "customRoleId",expires::float8 AS expires FROM invitations WHERE garage_id=$1 AND expires>$2 ORDER BY expires DESC',
       [state.id, Date.now()],
     );
   }

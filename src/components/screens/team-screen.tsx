@@ -3,18 +3,24 @@ import { useEffect, useState } from 'react';
 import { Plus, Copy, Check } from 'lucide-react';
 import { useGarage, request } from '../provider';
 import { Avatar, Badge, Button, Field, Form, Modal, value } from '../ui';
-import { RolePermissionsDialog, UserPermissionsDialog } from '../permissions-editor';
+import {
+  RolePermissionsDialog,
+  UserPermissionsDialog,
+  AssignRoleDialog,
+} from '../permissions-editor';
+import { roleLabel } from '@/lib/permissions';
 import type { User } from '@/lib/domain';
 
 export function TeamScreen() {
   const { state, user, can } = useGarage();
   const [permissionsFor, setPermissionsFor] = useState<User | null>(null);
   const [roles, setRoles] = useState(false);
+  const [roleFor, setRoleFor] = useState<User | null>(null);
   const [invite, setInvite] = useState(false);
   const [url, setUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [pending, setPending] = useState<
-    { id: string; email: string; role: string; expires: number }[]
+    { id: string; email: string; role: User['role']; customRoleId?: string; expires: number }[]
   >([]);
   const [error, setError] = useState('');
   const load = async () => {
@@ -61,13 +67,7 @@ export function TeamScreen() {
                 {u.name}
                 {u.id === user.id && <small>Vous</small>}
               </h3>
-              <Badge tone={u.role === 'owner' ? 'blue' : ''}>
-                {u.role === 'owner'
-                  ? 'Responsable'
-                  : u.role === 'reception'
-                    ? 'Accueil'
-                    : 'Mécanicien'}
-              </Badge>
+              <Badge tone={u.role === 'owner' ? 'blue' : ''}>{roleLabel(state, u)}</Badge>
               <div className="team-counts">
                 <span>
                   <b>{tasks.filter((t) => t.status === 'doing').length}</b>En cours
@@ -80,6 +80,11 @@ export function TeamScreen() {
                   Terminées
                 </span>
               </div>
+              {user.role === 'owner' && u.role !== 'owner' && (
+                <Button aria-label={`Attribuer un rôle à ${u.name}`} onClick={() => setRoleFor(u)}>
+                  Attribuer un rôle
+                </Button>
+              )}
               {user.role === 'owner' && u.role !== 'owner' && (
                 <Button onClick={() => setPermissionsFor(u)}>Permissions individuelles</Button>
               )}
@@ -97,7 +102,7 @@ export function TeamScreen() {
                 <span>
                   <strong>{item.email}</strong>
                   <small>
-                    {item.role === 'mechanic' ? 'Mécanicien' : 'Accueil'} · Expire le{' '}
+                    {roleLabel(state, item)} · Expire le{' '}
                     {new Date(item.expires).toLocaleDateString('fr-FR')}
                   </small>
                 </span>
@@ -137,9 +142,12 @@ export function TeamScreen() {
           <Form
             label="Créer le lien d’invitation"
             onSubmit={async (f) => {
+              const selected = value(f, 'role');
+              const custom = state.settings.customRoles?.find((r) => r.id === selected);
               const result = await request<{ url: string }>('invite', {
                 email: value(f, 'email'),
-                role: value(f, 'role'),
+                role: custom?.baseRole ?? selected,
+                ...(custom ? { customRoleId: custom.id } : {}),
               });
               setUrl(result.url);
               setCopied(false);
@@ -153,6 +161,11 @@ export function TeamScreen() {
               <select name="role">
                 <option value="mechanic">Mécanicien</option>
                 <option value="reception">Accueil</option>
+                {state.settings.customRoles?.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
               </select>
             </Field>
           </Form>
@@ -183,6 +196,7 @@ export function TeamScreen() {
         </Modal>
       )}
       {roles && <RolePermissionsDialog close={() => setRoles(false)} />}
+      {roleFor && <AssignRoleDialog member={roleFor} close={() => setRoleFor(null)} />}
       {permissionsFor && (
         <UserPermissionsDialog member={permissionsFor} close={() => setPermissionsFor(null)} />
       )}

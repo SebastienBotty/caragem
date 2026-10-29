@@ -9,6 +9,7 @@ import {
   type Permission,
   type PermissionOverrides,
   type RolePermissions,
+  type CustomRole,
 } from './permissions.ts';
 
 export const stages = [
@@ -45,6 +46,7 @@ export type User = {
   role: 'owner' | 'reception' | 'mechanic';
   color: string;
   permissions?: PermissionOverrides;
+  customRoleId?: string;
   onboardingSeen?: boolean;
 };
 export type Customer = {
@@ -151,6 +153,7 @@ export type GarageState = {
     modules: Record<string, number>;
     configured: boolean;
     rolePermissions?: RolePermissions;
+    customRoles?: CustomRole[];
   };
   users: User[];
   customers: Customer[];
@@ -296,6 +299,14 @@ export const actionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('arrive'), id }),
   z.object({ type: z.literal('revisit'), id, issue: text, due: date }),
   z.object({ type: z.literal('rolePermissions'), permissions: rolePermissionsSchema }),
+  z.object({
+    type: z.literal('customRole'),
+    id: id.optional(),
+    name: z.string().trim().min(1).max(60),
+    baseRole: z.enum(['mechanic', 'reception']),
+    permissions: permissionOverridesSchema,
+  }),
+  z.object({ type: z.literal('assignRole'), userId: id, roleId: id }),
   z.object({
     type: z.literal('userPermissions'),
     userId: id,
@@ -751,6 +762,43 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
       if (user.role === 'owner') throw new Error('Le patron conserve toujours un accès complet.');
       user.permissions = a.permissions;
       message = `Permissions individuelles de ${user.name} mises à jour`;
+      break;
+    }
+    case 'customRole': {
+      if (actor.role !== 'owner') throw new Error('Seul le patron peut gérer les rôles.');
+      const roles = (s.settings.customRoles ??= []);
+      if (
+        ['Responsable', 'Patron', 'Mécanicien', 'Accueil'].some(
+          (name) => name.localeCompare(a.name, 'fr', { sensitivity: 'base' }) === 0,
+        ) ||
+        roles.some(
+          (r) => r.id !== a.id && r.name.localeCompare(a.name, 'fr', { sensitivity: 'base' }) === 0,
+        )
+      )
+        throw new Error('Ce nom de rôle est déjà utilisé.');
+      const role = a.id
+        ? requireItem(roles, a.id)
+        : { id: uid(), name: a.name, baseRole: a.baseRole, permissions: a.permissions };
+      Object.assign(role, { name: a.name, baseRole: a.baseRole, permissions: a.permissions });
+      if (!a.id) roles.push(role);
+      for (const member of s.users)
+        if (member.role !== 'owner' && member.customRoleId === role.id) member.role = role.baseRole;
+      message = `Rôle ${role.name} enregistré`;
+      break;
+    }
+    case 'assignRole': {
+      if (actor.role !== 'owner') throw new Error('Seul le patron peut attribuer les rôles.');
+      const member = requireItem(s.users, a.userId);
+      if (member.role === 'owner') throw new Error('Le patron conserve toujours un accès complet.');
+      if (a.roleId === 'mechanic' || a.roleId === 'reception') {
+        member.role = a.roleId;
+        delete member.customRoleId;
+      } else {
+        const role = requireItem(s.settings.customRoles ?? [], a.roleId);
+        member.role = role.baseRole;
+        member.customRoleId = role.id;
+      }
+      message = `Rôle de ${member.name} mis à jour`;
       break;
     }
   }
