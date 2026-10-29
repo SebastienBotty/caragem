@@ -32,6 +32,8 @@ Le guide peut être relancé depuis **Visite guidée** dans la barre latérale, 
 
 ### Clients et véhicules
 
+Les blocages des dossiers peuvent préciser un motif (accord, pièces, diagnostic, sous-traitance, ressources ou autre), un responsable, une échéance et la prochaine action attendue. Leur date d’ouverture est conservée lors des modifications. Lever un blocage l’archive dans la visite ; une nouvelle visite repart sans les blocages de la précédente. Les anciens textes restent compatibles et les permissions de modification technique s’appliquent.
+
 Un client peut avoir plusieurs véhicules. À l’arrivée, sélectionner le client permet de choisir un véhicule enregistré ou d’en ajouter un nouveau. La plaque et le modèle sont préremplis pour un véhicule connu ; le kilométrage et la couleur peuvent être actualisés pour la nouvelle visite. Un véhicule déjà au garage ne peut pas être enregistré une seconde fois.
 
 Les véhicules existants sont repris automatiquement depuis les dossiers persistés, avec une seule entrée par client et immatriculation, et les informations de la dernière visite. Chaque arrivée conserve un dossier d’intervention distinct. La fiche client regroupe les visites sous chaque véhicule et permet d’enregistrer une nouvelle arrivée directement. Aucune migration destructive n’est nécessaire.

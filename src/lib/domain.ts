@@ -63,6 +63,21 @@ export type Task = {
   status: 'todo' | 'doing' | 'done';
   minutes: number;
 };
+export const blockageKinds = [
+  { id: 'approval', label: 'Accord client' },
+  { id: 'parts', label: 'Pièce attendue' },
+  { id: 'diagnosis', label: 'Diagnostic' },
+  { id: 'subcontractor', label: 'Sous-traitance' },
+  { id: 'resource', label: 'Personnel ou équipement' },
+  { id: 'other', label: 'Autre' },
+] as const;
+export type Blockage = {
+  kind: (typeof blockageKinds)[number]['id'];
+  assigneeId?: string;
+  expectedAt?: string;
+  nextAction: string;
+  openedAt: string;
+};
 export type Vehicle = {
   id: string;
   plate: string;
@@ -73,6 +88,8 @@ export type Vehicle = {
   stage: Stage;
   issue: string;
   blocker: string;
+  blockerDetails?: Blockage;
+  blockerHistory?: (Blockage & { text: string; resolvedAt: string })[];
   priority: boolean;
   due: string;
   tasks: Task[];
@@ -211,7 +228,15 @@ export const actionSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('stage'), id, stage }),
   z.object({ type: z.literal('vehicleColor'), id, color }),
-  z.object({ type: z.literal('blocker'), id, text: optionalText }),
+  z.object({
+    type: z.literal('blocker'),
+    id,
+    text: optionalText,
+    kind: z.enum(blockageKinds.map((kind) => kind.id)).optional(),
+    assigneeId: id.optional(),
+    expectedAt: date.optional(),
+    nextAction: optionalText.optional(),
+  }),
   z.object({
     type: z.literal('note'),
     id,
@@ -469,6 +494,26 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
     }
     case 'blocker': {
       const v = activeVehicle(a.id);
+      if (a.assigneeId) requireItem(s.users, a.assigneeId);
+      if (a.text && a.kind && !a.nextAction?.trim())
+        throw new UserError('Indiquez la prochaine action pour débloquer le véhicule.');
+      if (!a.text && v.blocker && v.blockerDetails) {
+        (v.blockerHistory ??= []).unshift({
+          ...v.blockerDetails,
+          text: v.blocker,
+          resolvedAt: now,
+        });
+        v.blockerHistory = v.blockerHistory.slice(0, 100);
+      }
+      v.blockerDetails = a.text
+        ? {
+            kind: a.kind ?? 'other',
+            assigneeId: a.assigneeId,
+            expectedAt: a.expectedAt,
+            nextAction: a.nextAction ?? '',
+            openedAt: v.blockerDetails?.openedAt ?? now,
+          }
+        : undefined;
       v.blocker = a.text;
       message = `${v.plate} : ${a.text ? `blocage — ${a.text}` : 'blocage levé'}`;
       break;
@@ -743,6 +788,8 @@ export function applyAction(current: GarageState, input: Action, actor: User): G
         issue: a.issue,
         due: a.due,
         blocker: '',
+        blockerDetails: undefined,
+        blockerHistory: [],
         priority: false,
         tasks: [
           {

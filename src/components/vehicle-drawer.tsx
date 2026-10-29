@@ -22,6 +22,7 @@ import { TaskCard } from './tasks';
 import { DocumentDetail, DocumentForm } from './documents';
 import { ReturnVisit } from './forms';
 import { VehicleColor } from './vehicle-color';
+import { VehicleBlocker } from './vehicle-blocker';
 
 export function VehicleDrawer({ id, close }: { id: string; close: () => void }) {
   const { state, can, act, notify } = useGarage();
@@ -122,15 +123,12 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
             </small>
           </div>
           <VehicleColor vehicle={v} />
-          {v.blocker && (
-            <div className="drawer-blocker">
-              <AlertTriangle size={17} />
-              <span>{v.blocker}</span>
-              {!isClosed && can('vehicles.edit') && (
-                <button onClick={() => setDialog('blocker')}>Modifier</button>
-              )}
-            </div>
-          )}
+          <VehicleBlocker
+            vehicle={v}
+            open={dialog === 'blocker'}
+            edit={() => setDialog('blocker')}
+            close={() => setDialog('')}
+          />
           <div className="drawer-tabs">
             {[
               ['work', 'Travaux'],
@@ -492,25 +490,6 @@ export function VehicleDrawer({ id, close }: { id: string; close: () => void }) 
                 required
                 maxLength={200}
                 placeholder="Contrôle final, remplacement du filtre…"
-              />
-            </Field>
-          </Form>
-        </Modal>
-      )}
-      {dialog === 'blocker' && can('vehicles.edit') && (
-        <Modal title="Signaler un blocage" close={() => setDialog('')}>
-          <Form
-            onSubmit={async (f) => {
-              await act({ type: 'blocker', id: v.id, text: value(f, 'text') });
-              setDialog('');
-            }}
-          >
-            <Field label="Raison du blocage" hint="Laissez vide pour lever le blocage.">
-              <input
-                name="text"
-                maxLength={2000}
-                defaultValue={v.blocker}
-                placeholder="Pièce attendue, accord du client…"
               />
             </Field>
           </Form>

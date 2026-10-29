@@ -1602,6 +1602,24 @@ th {
   outline: 3px solid #789cf7 !important;
   outline-offset: 4px;
 }
+.structured-blocker .drawer-blocker {
+  margin-bottom: 0;
+}
+.blocker-detail {
+  display: grid;
+  gap: 6px;
+  padding: 8px 24px 16px;
+  font-size: 11px;
+  background: #fff7e8;
+}
+.blocker-history {
+  margin: 10px 24px;
+  font-size: 11px;
+}
+.blocker-history p {
+  padding: 8px 0;
+  line-height: 1.6;
+}
 .training-permission-target {
   background: #eaf1ff;
   border-radius: 8px;
