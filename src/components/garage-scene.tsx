@@ -37,6 +37,7 @@ import {
 import { Mechanic } from './mechanic';
 import { BreakRoom } from './break-room';
 import { vehicleBrand } from '@/lib/vehicle-brand';
+import { VehiclePriority } from './vehicle-priority';
 
 function Lift({ x, z }: { x: number; z: number }) {
   return (
@@ -167,6 +168,7 @@ function Car({
         document.body.style.cursor = '';
       }}
     >
+      {vehicle.priority && vehicle.stage === 'reception' && <VehiclePriority animate={animate} />}
       {(selected || hover) && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
           <ringGeometry args={[1.7, 1.82, 48]} />
