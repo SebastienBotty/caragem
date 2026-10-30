@@ -98,17 +98,19 @@ export function readSpreadsheet(base64: string) {
     sheet = book.Sheets[sheetName];
   if (!sheet || !sheet['!ref']) throw new UserError('La première feuille est vide.');
   const range = XLSX.utils.decode_range(sheet['!fullref'] || sheet['!ref']);
+  if (range.s.r !== 0)
+    throw new UserError('Placez les noms des colonnes sur la première ligne de la feuille Excel.');
   if (range.e.c >= 100 || range.e.r > csvMaxRows)
     throw new UserError('Maximum 100 colonnes et 5 000 lignes de données par feuille.');
   for (const [key, cell] of Object.entries(sheet)) {
     if (key.startsWith('!')) continue;
     if (cell.f || cell.t === 'e')
       throw new UserError(
-        'Les formules et cellules en erreur sont refusées. Remplacez-les par leurs valeurs.',
+        `Cellule ${key} : les formules et cellules en erreur sont refusées. Remplacez-les par leurs valeurs.`,
       );
     if (cell.t === 'd') {
       throw new UserError(
-        'Saisissez les dates en texte ISO, avec le fuseau pour les heures (ex. 2026-11-10T09:00:00+01:00).',
+        `Cellule ${key} : saisissez les dates en texte ISO, avec le fuseau pour les heures (ex. 2026-11-10T09:00:00+01:00).`,
       );
     }
   }
@@ -116,11 +118,17 @@ export function readSpreadsheet(base64: string) {
     header: 1,
     raw: true,
     defval: '',
-    blankrows: false,
+    blankrows: true,
   });
   const width = Math.max(...rows.map((r) => r.length));
   const normalized = rows.map((r) => Array.from({ length: width }, (_, i) => String(r[i] ?? '')));
   const csv = writeCsv(normalized[0], normalized.slice(1));
-  parseCsv(csv);
-  return { csv, sheetName, sheetCount: book.SheetNames.length };
+  const parsed = parseCsv(csv);
+  const worksheetRows = normalized
+    .slice(1)
+    .flatMap((row, index) => (row.some((value) => value.trim() !== '') ? [index + 2] : []));
+  const rowNumbers = Object.fromEntries(
+    parsed.rowNumbers.map((row, index) => [row, worksheetRows[index]]),
+  );
+  return { csv, sheetName, sheetCount: book.SheetNames.length, rowNumbers };
 }

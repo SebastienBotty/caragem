@@ -20,6 +20,18 @@ La lecture et l’écriture Excel utilisent [SheetJS CE 0.20.3 depuis sa distrib
 
 Les nombres acceptent le point ou la virgule décimale et les espaces de milliers, sans symbole monétaire. Les prix et paiements sont en **euros** dans le CSV et convertis en centimes au serveur. Les quantités de stock sont entières. Les dates doivent être ISO : `2026-11-10` pour une date seule, ou `2026-11-10T09:00:00+01:00` pour une date et heure avec fuseau. Les booléens acceptent `true/false`, `1/0`, `oui/non`.
 
+## Contrôles avant enregistrement
+
+Les mêmes contrôles sont appliqués côté serveur pendant l’analyse et à nouveau à la confirmation, y compris si l’API d’import est appelée directement. Une seule erreur bloque **tout le fichier**, sans ajout partiel. L’écran affiche la ligne et le champ à corriger, jusqu’à 100 erreurs par analyse. Pour Excel, les numéros correspondent aux lignes du classeur, y compris après les lignes vides ou les cellules sur plusieurs lignes ; les formules et dates Excel refusées indiquent leur cellule.
+
+- Chaque colonne peut alimenter un seul champ CaRM. Les colonnes non associées sont signalées et ne sont pas importées.
+- Un email renseigné doit respecter le format d’une adresse. Le téléphone est facultatif ; s’il est renseigné, il doit contenir 7 à 15 chiffres, avec un indicatif `+` ou `00` facultatif. Espaces, parenthèses, points et tirets sont acceptés ; les libellés et extensions doivent être retirés.
+- Les immatriculations acceptent les lettres, chiffres, espaces, points et tirets, jusqu’à 25 caractères, sans imposer le format d’un pays particulier.
+- Les nombres refusent les symboles monétaires et les séparateurs ambigus : `1 234,50` est accepté, `1 23` est refusé. Prix et quantités négatifs, quantités entières fractionnaires, dates impossibles, étapes inconnues, couleurs ou valeurs oui/non invalides sont bloqués. Un rendez-vous exige une date avec heure et fuseau.
+- Un identifiant de client, pièce ou visite fourni doit exister ; il ne sera pas remplacé par une autre recherche. Les noms, emails, téléphones, plaques ou numéros de visite fournis avec cet identifiant doivent être cohérents. Sans identifiant, les recherches uniques par coordonnées, référence ou plaque restent possibles.
+- Deux lignes portant le même identifiant avec des données différentes sont refusées. Les lignes répétées d’un devis ou d’une facture restent autorisées pour ses prestations, avec des informations de document cohérentes.
+- Les valeurs sont contrôlées même lorsqu’un enregistrement existe déjà. Une réimportation de données anciennes non conformes peut donc demander un nettoyage préalable ; aucune correction silencieuse n’est faite.
+
 ## Ordre et liens entre catégories
 
 | Ordre | Catégorie              | Liens et contenu                                                                                                                                                                                                                                                       |
@@ -32,7 +44,7 @@ Les nombres acceptent le point ou la virgule décimale et les espaces de millier
 | 5     | Commandes fournisseurs | Pièce, visite facultative, quantités commandée/reçue, échéance et coût. Une réception historique ne rajoute pas une seconde fois les pièces au stock importé. Doublon : référence de commande.                                                                         |
 | 5     | Devis et factures      | Une ligne CSV par prestation/pièce, regroupée par identifiant ou type et numéro. TVA, ristourne en euros ou %, règlements historiques, accord et validation sont conservés. Doublon : type et numéro.                                                                  |
 
-Les identifiants exportés sont conservés et permettent de rétablir les liens dans un nouveau garage. Si un identifiant client n’existe pas, CaRM peut retrouver le client par email, ou par nom et téléphone. Les pièces peuvent être retrouvées par référence. Les visites peuvent être retrouvées par plaque et numéro de visite ; en cas d’ambiguïté, le fichier doit être précisé. Importer les clients et pièces avant leurs données liées.
+Les identifiants exportés sont conservés et permettent de rétablir les liens dans un nouveau garage. Si aucun identifiant client n’est renseigné, CaRM peut retrouver le client par email, ou par nom et téléphone. Sans identifiant, les pièces peuvent être retrouvées par référence et les visites par plaque et numéro de visite ; en cas d’ambiguïté, le fichier doit être précisé. Un identifiant fourni mais inconnu est toujours refusé. Importer les clients et pièces avant leurs données liées.
 
 Les véhicules sans étape sont placés dans l’historique (`returned`) : un catalogue importé n’est pas assimilé à des arrivées dans l’atelier. Pour transférer les dossiers en cours, renseigner `reception`, `diagnosis`, `waiting`, `workshop` ou `ready`. Le CSV doit fournir des valeurs correspondant à ces étapes ; la correspondance des colonnes ne traduit pas automatiquement les statuts propres à un autre logiciel.
 

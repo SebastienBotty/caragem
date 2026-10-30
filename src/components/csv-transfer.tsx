@@ -24,6 +24,7 @@ export function CsvTransfer({ close }: { close: () => void }) {
   const [busy, setBusy] = useState(false);
   const [format, setFormat] = useState<'csv' | 'xls' | 'xlsx'>('csv');
   const [sheetInfo, setSheetInfo] = useState('');
+  const [sourceRows, setSourceRows] = useState<Record<number, number>>({});
   if (user.role !== 'owner' || training) return null;
   const dataset = csvDatasets[kind];
   async function download(template = false, example = false) {
@@ -133,6 +134,7 @@ export function CsvTransfer({ close }: { close: () => void }) {
               setPreview(null);
               setError('');
               setSheetInfo('');
+              setSourceRows({});
             }}
           >
             {Object.entries(csvDatasets).map(([key, data]) => (
@@ -220,7 +222,10 @@ export function CsvTransfer({ close }: { close: () => void }) {
               setContent('');
               setFilename('');
               setSheetInfo('');
+              setSourceRows({});
               try {
+                if (!/\.(csv|xls|xlsx)$/i.test(file.name))
+                  throw new Error('Sélectionnez un fichier CSV, XLS ou XLSX.');
                 if (file.size > csvMaxBytes)
                   throw new Error('Fichier trop volumineux : maximum 1 Mio.');
                 let text: string;
@@ -234,8 +239,10 @@ export function CsvTransfer({ close }: { close: () => void }) {
                     csv: string;
                     sheetName: string;
                     sheetCount: number;
+                    rowNumbers?: Record<number, number>;
                   }>('data-transfer/read', { base64: btoa(binary) });
                   text = result.csv;
+                  setSourceRows(result.rowNumbers ?? {});
                   setSheetInfo(
                     `Feuille analysée : ${result.sheetName}. ${result.sheetCount > 1 ? 'Les autres feuilles ne seront pas importées.' : ''}`,
                   );
@@ -284,7 +291,13 @@ export function CsvTransfer({ close }: { close: () => void }) {
                   >
                     <option value="">{required ? 'Choisir une colonne' : 'Non renseigné'}</option>
                     {parsed.headers.map((header, index) => (
-                      <option key={index} value={index}>
+                      <option
+                        key={index}
+                        value={index}
+                        disabled={Object.entries(mapping).some(
+                          ([field, column]) => field !== key && column === index,
+                        )}
+                      >
                         {header}
                       </option>
                     ))}
@@ -292,6 +305,15 @@ export function CsvTransfer({ close }: { close: () => void }) {
                 </Field>
               ))}
             </div>
+            {parsed.headers.some((_, index) => !Object.values(mapping).includes(index)) && (
+              <p className="muted small-text">
+                Colonnes ignorées :{' '}
+                {parsed.headers
+                  .filter((_, index) => !Object.values(mapping).includes(index))
+                  .join(', ')}
+                . Leur contenu ne sera pas importé.
+              </p>
+            )}
             <div className="table-scroll">
               <table className="data-table">
                 <caption>Aperçu des cinq premières lignes</caption>
@@ -326,6 +348,7 @@ export function CsvTransfer({ close }: { close: () => void }) {
             </p>
             {!!preview.errors.length && (
               <>
+                <strong>Fichier invalide : import bloqué</strong>
                 <p>
                   Corrigez le fichier puis analysez-le à nouveau. Aucun import ne sera effectué tant
                   que des erreurs restent présentes.
@@ -333,7 +356,7 @@ export function CsvTransfer({ close }: { close: () => void }) {
                 <ul>
                   {preview.errors.map((item, i) => (
                     <li key={i}>
-                      Ligne {item.row} : {item.message}
+                      Ligne {sourceRows[item.row] ?? item.row} : {item.message}
                     </li>
                   ))}
                 </ul>

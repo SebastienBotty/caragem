@@ -206,6 +206,29 @@ test('CSV dialog maps external columns, previews before confirmation, downloads 
   assert.ok(button('Confirmer'));
   await button('Confirmer').props.onClick();
   assert.equal(state.customers.length, 2);
+  const input = () => render().find((e) => e.props.type === 'file');
+  const invalid = (name: string) => ({
+    currentTarget: {
+      files: [
+        {
+          name,
+          size: 80,
+          arrayBuffer: async () => new TextEncoder().encode('name;phone\nInvalide;bonjour').buffer,
+        },
+      ],
+      value: name,
+    },
+  });
+  await input().props.onChange(invalid('contacts.exe'));
+  assert.ok(
+    render().some(
+      (e) => e.props.role === 'alert' && String(e.props.children).includes('CSV, XLS ou XLSX'),
+    ),
+  );
+  await input().props.onChange(invalid('contacts.csv'));
+  await button('Analyser avant import').props.onClick();
+  assert.equal(button('Confirmer'), undefined);
+  assert.equal(state.customers.length, 2);
   role = 'mechanic';
   assert.equal(render().length, 0);
   role = 'owner';

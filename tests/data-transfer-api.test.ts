@@ -235,3 +235,27 @@ test('CSV-specific size limits allow real batches while rejecting malformed or o
     400,
   );
 });
+
+test('invalid data cannot bypass validation by calling import directly, even without preview', async (t) => {
+  const { post, state, store } = await fixture(t);
+  const before = JSON.stringify(await store.get(state.id));
+  const csv = writeCsv(
+    ['name', 'email', 'phone'],
+    [
+      ['Valide', 'valid@example.com', '+32412345678'],
+      ['Invalide', 'bad@example.com', 'bonjour'],
+    ],
+  );
+  const input = { kind: 'customers', csv, mapping: { name: 0, email: 1, phone: 2 } };
+  const preview = await (await post('data-transfer/preview', input)).json();
+  assert.equal(preview.errors[0].row, 3);
+  assert.match(preview.errors[0].message, /Téléphone/);
+  const response = await post('data-transfer/import', { ...input, revision: state.revision });
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /Import annulé/);
+  assert.equal(JSON.stringify(await store.get(state.id)), before);
+  assert.equal(
+    (await post('data-transfer/preview', { ...input, mapping: { name: 0, email: 0 } })).status,
+    400,
+  );
+});

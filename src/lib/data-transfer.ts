@@ -49,7 +49,7 @@ export const csvDatasets: Record<TransferKind, { label: string; columns: Column[
         ['email', 'Email'],
         ['phone', 'Téléphone'],
       ],
-      help: 'Le nom est obligatoire. L’email ou le couple nom / téléphone sert à reconnaître les clients existants.',
+      help: 'Le nom est obligatoire. L’email ou le couple nom / téléphone sert à reconnaître les clients existants. Email et téléphone sont facultatifs ; s’ils sont renseignés, l’email doit être valide et le téléphone contenir 7 à 15 chiffres.',
     },
     vehicles: {
       label: 'Véhicules et visites',
@@ -319,6 +319,10 @@ const partSchema = z.object({
 
 function numeric(value: string, fallback = 0): number {
   if (!value) return fallback;
+  if (!/^[+-]?(?:\d+|\d{1,3}(?:[ \u00a0\u202f]\d{3})+)(?:[.,]\d+)?$/.test(value))
+    throw new UserError(
+      'Nombre attendu, avec des groupes de trois chiffres pour les milliers (ex. 1 234,50).',
+    );
   const cleaned = value.replace(/[ \u00a0\u202f]/g, '').replace(',', '.');
   if (!/^[+-]?\d+(?:\.\d+)?$/.test(cleaned) || !Number.isFinite(Number(cleaned)))
     throw new UserError('Valeur numérique invalide.');
@@ -344,9 +348,17 @@ function json(value: string): unknown {
 }
 function customerFor(state: GarageState, row: Record<string, string>): Customer {
   const byId = state.customers.find((c) => c.id === row.customer_id);
+  if (row.customer_id && !byId)
+    throw new UserError(
+      'Identifiant client introuvable. Importez ce client avant ses données liées.',
+    );
   if (byId) {
     if (row.customer_email && byId.email.toLowerCase() !== row.customer_email.toLowerCase())
       throw new UserError('Identifiant et email client contradictoires.');
+    if (row.customer_name && normalize(byId.name) !== normalize(row.customer_name))
+      throw new UserError('Identifiant et nom du client contradictoires.');
+    if (row.customer_phone && phoneKey(byId.phone) !== phoneKey(row.customer_phone))
+      throw new UserError('Identifiant et téléphone client contradictoires.');
     return byId;
   }
   const candidates = state.customers.filter((c) =>
@@ -364,9 +376,15 @@ function customerFor(state: GarageState, row: Record<string, string>): Customer 
 }
 function vehicleFor(state: GarageState, row: Record<string, string>): Vehicle {
   const byId = state.vehicles.find((v) => v.id === row.vehicle_id);
+  if (row.vehicle_id && !byId)
+    throw new UserError(
+      'Identifiant de visite véhicule introuvable. Importez cette visite avant ses données liées.',
+    );
   if (byId) {
     if (row.plate && plateKey(byId.plate) !== plateKey(row.plate))
       throw new UserError('Identifiant véhicule et immatriculation contradictoires.');
+    if (row.visit && byId.visit !== numeric(row.visit))
+      throw new UserError('Identifiant véhicule et numéro de visite contradictoires.');
     return byId;
   }
   const candidates = state.vehicles.filter(
@@ -382,6 +400,10 @@ function vehicleFor(state: GarageState, row: Record<string, string>): Vehicle {
   return candidates[0];
 }
 function partFor(state: GarageState, row: Record<string, string>): Part {
+  if (row.part_id && !state.parts.some((p) => p.id === row.part_id))
+    throw new UserError(
+      'Identifiant pièce introuvable. Importez cette pièce avant ses données liées.',
+    );
   const part =
     state.parts.find((p) => p.id === row.part_id) ??
     state.parts.find((p) => p.reference === row.part_reference);
@@ -389,6 +411,102 @@ function partFor(state: GarageState, row: Record<string, string>): Part {
   if (row.part_reference && part.reference !== row.part_reference)
     throw new UserError('Identifiant et référence pièce contradictoires.');
   return part;
+}
+
+const phoneKey = (value: string) => value.replace(/\D/g, '').replace(/^00/, '');
+function validateCell(key: string, value: string, kind: TransferKind) {
+  if (!value) return;
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\ufffd]/u.test(value))
+    throw new UserError(
+      'Caractère de contrôle ou caractère illisible interdit. Vérifiez l’encodage du fichier.',
+    );
+  if (['phone', 'customer_phone'].includes(key)) {
+    if (!/^\+?[\d ()\u00a0.\-]+$/.test(value) || !/^\d{7,15}$/.test(phoneKey(value)))
+      throw new UserError(
+        'Téléphone attendu : 7 à 15 chiffres, avec indicatif + ou 00 facultatif (ex. +32 412 34 56 78).',
+      );
+  } else if (['email', 'customer_email'].includes(key)) {
+    if (!z.email().max(254).safeParse(value).success)
+      throw new UserError('Adresse email invalide (ex. client@example.com).');
+  } else if (key === 'plate') {
+    if (!/^[\p{L}\p{N}][\p{L}\p{N} .\-]{0,24}$/u.test(value))
+      throw new UserError(
+        'Immatriculation attendue : lettres et chiffres, avec espaces, points ou tirets (25 caractères maximum).',
+      );
+  } else if (['due', 'at', 'created_at'].includes(key)) {
+    const valid =
+      key === 'at'
+        ? z.iso.datetime({ offset: true }).safeParse(value).success
+        : date.safeParse(value).success;
+    if (!valid)
+      throw new UserError(
+        'Date ISO valide attendue (2026-11-10), avec heure et fuseau pour un rendez-vous (2026-11-10T09:00:00+01:00).',
+      );
+  } else if (['priority', 'consumed', 'arrived', 'accepted', 'validated'].includes(key)) {
+    boolean(value);
+  } else if (
+    [
+      'stock',
+      'min',
+      'mileage',
+      'visit',
+      'quantity',
+      'received',
+      'cost',
+      'price',
+      'unit_cost',
+      'unit_price',
+      'paid',
+      'discount_amount',
+      'tax_rate',
+      'discount_rate',
+    ].includes(key)
+  ) {
+    const monetary = [
+      'cost',
+      'price',
+      'unit_cost',
+      'unit_price',
+      'paid',
+      'discount_amount',
+    ].includes(key);
+    const amount = monetary ? euros(value) : numeric(value);
+    const maximum =
+      key === 'mileage'
+        ? 5000000
+        : key === 'tax_rate'
+          ? 30
+          : key === 'discount_rate'
+            ? 100
+            : monetary
+              ? 100000000
+              : key === 'quantity' && kind !== 'documents'
+                ? 10000
+                : 100000;
+    if (amount < 0 || amount > maximum || ((key === 'visit' || key === 'quantity') && amount === 0))
+      throw new UserError(
+        `Valeur hors limites : ${key === 'visit' || key === 'quantity' ? 'strictement positive' : 'positive ou nulle'}, au maximum ${monetary ? `${maximum / 100} €` : maximum}.`,
+      );
+    if (
+      !['tax_rate', 'discount_rate'].includes(key) &&
+      !(key === 'quantity' && kind === 'documents') &&
+      !Number.isInteger(amount)
+    )
+      throw new UserError('Nombre entier attendu.');
+  } else if (
+    key === 'stage' &&
+    !['reception', 'diagnosis', 'waiting', 'workshop', 'ready', 'returned'].includes(
+      value.toLowerCase(),
+    )
+  ) {
+    throw new UserError(
+      'Étape attendue : reception, diagnosis, waiting, workshop, ready ou returned.',
+    );
+  } else if (key === 'color' && !/^#[0-9a-f]{6}$/i.test(value)) {
+    throw new UserError('Couleur au format #RRGGBB attendue (ex. #2563eb).');
+  } else if (['tasks', 'notes', 'blocker_details', 'blocker_history'].includes(key)) {
+    json(value);
+  }
 }
 
 export type ImportReport = {
@@ -417,11 +535,15 @@ export function prepareCsvImport(
   for (const [key, label, required] of columns)
     if (required && mapping[key] === undefined)
       throw new UserError(`Associez la colonne « ${label} ».`);
+  if (new Set(Object.values(mapping)).size !== Object.values(mapping).length)
+    throw new UserError(
+      'Une même colonne du fichier ne peut pas être associée à plusieurs champs CaRM.',
+    );
   const state = structuredClone(current);
   delete state.savedVehicles;
   const report: ImportReport = { added: 0, skipped: 0, errors: [] };
   const now = new Date().toISOString();
-  const rows = parsed.rows.map((values, index) => ({
+  let rows = parsed.rows.map((values, index) => ({
     index: parsed.rowNumbers[index],
     data: Object.fromEntries(
       columns.map(([key]) => [
@@ -455,7 +577,30 @@ export function prepareCsvImport(
           : error instanceof z.ZodError
             ? 'Valeurs invalides : ' +
               error.issues
-                .map((issue) => issue.path.join('.'))
+                .map((issue) => {
+                  const aliases: Record<string, string> = {
+                    unitPrice: 'unit_price',
+                    taxRate: 'tax_rate',
+                    discountRate: 'discount_rate',
+                    discountAmount: 'discount_amount',
+                    customerId: 'customer_id',
+                    createdAt: 'created_at',
+                    blockerDetails: 'blocker_details',
+                    blockerHistory: 'blocker_history',
+                  };
+                  const key = String(issue.path[0] ?? '');
+                  const label =
+                    columns.find(([field]) => field === (aliases[key] ?? key))?.[1] ?? key;
+                  const reason =
+                    issue.code === 'too_small'
+                      ? 'valeur trop petite ou vide'
+                      : issue.code === 'too_big'
+                        ? 'limite dépassée'
+                        : issue.code === 'invalid_value'
+                          ? 'valeur non autorisée'
+                          : 'format ou type invalide';
+                  return `${label}${issue.path.length > 1 ? ` (${issue.path.slice(1).join('.')})` : ''} : ${reason}`;
+                })
                 .filter(Boolean)
                 .join(', ')
             : undefined;
@@ -463,6 +608,36 @@ export function prepareCsvImport(
       if (report.errors.length < 100) report.errors.push({ row: index, message });
     }
   };
+  // ASVS 2.2.1–3: validate supplied fields even when a duplicate would otherwise be skipped.
+  const seen = new Map<string, string>();
+  rows = rows.filter(({ index, data }) => {
+    let valid = true;
+    for (const [key, label, required] of columns) {
+      run(index, () => {
+        try {
+          if (required && !data[key]) throw new UserError('Valeur obligatoire manquante.');
+          validateCell(key, data[key], kind);
+        } catch (error) {
+          valid = false;
+          if (error instanceof UserError) throw new UserError(`${label} : ${error.message}`);
+          throw error;
+        }
+      });
+    }
+    if (kind !== 'documents' && data.id)
+      run(index, () => {
+        const previous = seen.get(data.id),
+          signature = JSON.stringify(data);
+        if (previous && previous !== signature) {
+          valid = false;
+          throw new UserError(
+            'Cet identifiant apparaît plusieurs fois dans le fichier avec des données différentes.',
+          );
+        }
+        seen.set(data.id, signature);
+      });
+    return valid;
+  });
   if (kind === 'documents') {
     for (const row of rows) {
       const kind = row.data.kind.toLowerCase();

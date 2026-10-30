@@ -103,3 +103,27 @@ test('Excel import rejects bad formats, formulas, excessive dimensions and expan
   archive.writeUInt32LE(9 * 1024 * 1024, central + 24);
   assert.throws(() => readSpreadsheet(archive.toString('base64')), /décompression/);
 });
+
+test('Excel errors retain original row numbers despite empty rows and multiline cells; headers must be first', () => {
+  for (const format of ['xls', 'xlsx'] as const) {
+    const book = XLSX.utils.book_new();
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['name', 'phone'],
+      ['Deux\nlignes', ''],
+      [],
+      ['Invalide', 'abc'],
+    ]);
+    XLSX.utils.book_append_sheet(book, sheet, 'Clients');
+    const result = readSpreadsheet(XLSX.write(book, { type: 'base64', bookType: format }));
+    const csvRows = parseCsv(result.csv).rowNumbers;
+    assert.equal(result.rowNumbers[csvRows[0]], 2);
+    assert.equal(result.rowNumbers[csvRows[1]], 4);
+    delete sheet.A1;
+    delete sheet.B1;
+    sheet['!ref'] = 'A2:B4';
+    assert.throws(
+      () => readSpreadsheet(XLSX.write(book, { type: 'base64', bookType: format })),
+      /première ligne/,
+    );
+  }
+});
