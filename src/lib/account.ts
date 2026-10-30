@@ -5,6 +5,11 @@ export type AccountSummary = {
   hasPassword: boolean;
   googleLinked: boolean;
   demoExpires?: number;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  twoFactorEnabled?: boolean;
+  preferences?: import('./account-preferences.ts').AccountPreferences;
 };
 export type GarageAccess = { id: string; name: string; userId: string; role: User['role'] };
 export type SessionData = {

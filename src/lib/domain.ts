@@ -43,6 +43,7 @@ export const stages = [
 ] as const;
 export type Stage = (typeof stages)[number]['id'] | 'returned';
 export type User = {
+  avatar?: string;
   id: string;
   name: string;
   role: 'owner' | 'reception' | 'mechanic';

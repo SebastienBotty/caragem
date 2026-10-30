@@ -36,6 +36,8 @@ export async function passwordMatches(password: string, hash: string | null) {
 }
 export const digest = (token: string) => createHash('sha256').update(token).digest('hex');
 export type Session = {
+  authenticatedAt?: number;
+  twoFactorVerified?: boolean;
   garageId: string;
   userId: string;
   email?: string;
@@ -43,6 +45,11 @@ export type Session = {
   tokenHash: string;
 };
 type Account = {
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  twoFactorEnabled?: boolean;
+  preferences?: import('../lib/account-preferences.ts').AccountPreferences;
   email: string;
   hash: string | null;
   name: string;
@@ -77,6 +84,8 @@ export class Store {
     this.ready = db.transaction(async (sql) => {
       await sql.query('SELECT pg_advisory_xact_lock(73190421)');
       await sql.query(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
+      for (const file of ['account-security.sql', 'account-preferences.sql', 'account-profile.sql'])
+        await sql.query(readFileSync(new URL(file, import.meta.url), 'utf8'));
     });
   }
   private async rows<T>(text: string, values: unknown[] = [], sql: Sql = this.db): Promise<T[]> {
@@ -168,7 +177,7 @@ export class Store {
     await this.ready;
     return (
       await this.rows<Account>(
-        'SELECT email,hash,name,onboarding_seen AS "onboardingSeen",demo_expires::float8 AS "demoExpires",EXISTS(SELECT 1 FROM google_identities g WHERE g.email=accounts.email) AS "googleLinked" FROM accounts WHERE email=$1',
+        'SELECT email,hash,name,first_name AS "firstName",last_name AS "lastName",avatar,preferences,EXISTS(SELECT 1 FROM account_security sec WHERE sec.email=accounts.email AND sec.enabled) AS "twoFactorEnabled",onboarding_seen AS "onboardingSeen",demo_expires::float8 AS "demoExpires",EXISTS(SELECT 1 FROM google_identities g WHERE g.email=accounts.email) AS "googleLinked" FROM accounts WHERE email=$1',
         [email.toLowerCase()],
         sql,
       )
@@ -207,6 +216,7 @@ export class Store {
     state.settings.name = garageName;
     state.settings.address = '';
     state.users[0].name = account.name;
+    state.users[0].avatar = account.avatar;
     await this.save(state, sql);
     await sql.query('INSERT INTO memberships(email,garage_id,user_id,role) VALUES($1,$2,$3,$4)', [
       email,
@@ -378,7 +388,7 @@ export class Store {
       if (request.invitation) return this.join(sql, email, request.invitation);
       if (linkedTarget) return linkedTarget;
       const [membership] = await this.rows<Membership>(
-        'SELECT m.* FROM memberships m JOIN garages g ON g.id=m.garage_id WHERE email=$1 ORDER BY g.created_at,g.id LIMIT 1',
+        `SELECT m.* FROM memberships m JOIN garages g ON g.id=m.garage_id JOIN accounts a ON a.email=m.email WHERE m.email=$1 ORDER BY (g.id=a.preferences->>'defaultGarageId') DESC NULLS LAST,g.created_at,g.id LIMIT 1`,
         [email],
         sql,
       );
@@ -414,6 +424,7 @@ export class Store {
       const user: User = {
         id: uid(),
         name: account.name,
+        avatar: account.avatar,
         role: role?.baseRole ?? invite.role,
         color: '#8b78b7',
         ...(role ? { customRoleId: role.id } : {}),
@@ -445,7 +456,13 @@ export class Store {
     if (!row) throw new UserError('Vous ne faites pas partie de ce garage.');
     return { garageId: row.garage_id, userId: row.user_id };
   }
-  async newSession(garageId: string, userId: string) {
+  async newSession(
+    garageId: string,
+    userId: string,
+    userAgent = '',
+    authenticatedAt = 0,
+    twoFactorVerified = false,
+  ) {
     await this.ready;
     const state = await this.get(garageId);
     const [membership] = await this.rows<{ email: string }>(
@@ -458,13 +475,16 @@ export class Store {
     await this.db.query('DELETE FROM sessions WHERE expires<$1', [Date.now()]);
     // ASVS 7.2.2: only a hash of the session secret is persisted.
     await this.db.query(
-      'INSERT INTO sessions(token_hash,garage_id,user_id,account_email,expires) VALUES($1,$2,$3,$4,$5)',
+      'INSERT INTO sessions(token_hash,garage_id,user_id,account_email,expires,user_agent,authenticated_at,mfa_verified) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
       [
         digest(token),
         garageId,
         userId,
         membership?.email ?? null,
         Math.min(Date.now() + 7 * 86400000, state.demo ? state.demoExpires! : Infinity),
+        userAgent.slice(0, 500),
+        authenticatedAt,
+        twoFactorVerified,
       ],
     );
     return token;
@@ -479,8 +499,10 @@ export class Store {
       user_id: string;
       account_email: string | null;
       expires: number;
+      authenticated_at: number;
+      mfa_verified: boolean;
     }>(
-      "SELECT s.*, s.expires::float8 AS expires FROM sessions s JOIN garages g ON g.id=s.garage_id WHERE s.token_hash=$1 AND s.expires>$2 AND (g.state->>'demo'<>'true' OR COALESCE((g.state->>'demoExpires')::bigint, (extract(epoch FROM g.created_at)*1000)::bigint+86400000)>$2)",
+      "SELECT s.*, s.expires::float8 AS expires,s.authenticated_at::float8 AS authenticated_at FROM sessions s JOIN garages g ON g.id=s.garage_id WHERE s.token_hash=$1 AND s.expires>$2 AND (s.mfa_verified OR NOT EXISTS(SELECT 1 FROM account_security a WHERE a.email=s.account_email AND a.enabled)) AND (g.state->>'demo'<>'true' OR COALESCE((g.state->>'demoExpires')::bigint, (extract(epoch FROM g.created_at)*1000)::bigint+86400000)>$2)",
       [digest(token), Date.now()],
     );
     if (!row) return;
@@ -503,7 +525,13 @@ export class Store {
       );
       if (!membership) return;
     }
+    await this.db.query(
+      'UPDATE sessions SET last_seen=$2::bigint WHERE token_hash=$1 AND last_seen<$2::bigint-300000',
+      [row.token_hash, Date.now()],
+    );
     return {
+      authenticatedAt: row.authenticated_at,
+      twoFactorVerified: row.mfa_verified,
       garageId: row.garage_id,
       userId,
       email: row.account_email ?? undefined,
@@ -623,6 +651,7 @@ export class Store {
     if (!session.email) throw new UserError('Aucun compte personnel associé.');
     await this.atomic(async (sql) => {
       await sql.query('UPDATE accounts SET hash=$1 WHERE email=$2', [hash, session.email]);
+      await sql.query('DELETE FROM two_factor_challenges WHERE email=$1', [session.email]);
       await sql.query('DELETE FROM sessions WHERE account_email=$1', [session.email]);
     });
   }
