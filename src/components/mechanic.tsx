@@ -9,6 +9,7 @@ export function Mechanic({
   index,
   color,
   name,
+  avatar,
   animate,
   resting = false,
   location,
@@ -16,6 +17,7 @@ export function Mechanic({
   index: number;
   color: string;
   name: string;
+  avatar?: string;
   animate: boolean;
   resting?: boolean;
   location?: 'work' | 'lounge' | 'office';
@@ -51,7 +53,7 @@ export function Mechanic({
           className="mechanic-name"
           data-location={location ?? (resting ? 'lounge' : 'work')}
         >
-          <i style={{ background: color }} />
+          {avatar ? <img src={avatar} alt="" /> : <i style={{ background: color }} />}
           {name}
         </span>
       </Html>

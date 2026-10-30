@@ -20,10 +20,12 @@ export function Badge({ children, tone = '' }: { children: ReactNode; tone?: str
 }
 export function Avatar({
   name,
+  avatar,
   color = '#4263eb',
   small = false,
 }: {
   name: string;
+  avatar?: string;
   color?: string;
   small?: boolean;
 }) {
@@ -33,11 +35,15 @@ export function Avatar({
       style={{ background: color + '20', color }}
       title={name}
     >
-      {name
-        .split(' ')
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join('')}
+      {avatar ? (
+        <img src={avatar} alt="" />
+      ) : (
+        name
+          .split(' ')
+          .map((n) => n[0])
+          .slice(0, 2)
+          .join('')
+      )}
     </span>
   );
 }

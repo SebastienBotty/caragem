@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import type { ReactElement } from 'react';
 import * as layout from '../src/lib/layout.ts';
 import * as domain from '../src/lib/domain.ts';
+import * as sceneSettings from '../src/lib/scene-preferences.ts';
 
 test('priority marker floats and pulses slowly, stays static with reduced motion and does not intercept clicks', () => {
   const require = createRequire(import.meta.url);
@@ -99,6 +100,7 @@ test('only priority vehicles at reception show the alert, alongside the selectio
   const mocks: Record<string, unknown> = {
     react: {
       ...react,
+      useContext: () => null,
       useRef: (value: unknown) => ({ current: value }),
       useMemo: (fn: () => unknown) => fn(),
       useState: (value: unknown) => [value, () => {}],
@@ -107,6 +109,7 @@ test('only priority vehicles at reception show the alert, alongside the selectio
     },
     '@/lib/layout': layout,
     '@/lib/domain': domain,
+    '@/lib/scene-preferences': sceneSettings,
     three: THREE,
     zod: require('zod'),
     '@react-three/fiber': { useFrame() {} },

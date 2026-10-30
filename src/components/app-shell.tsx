@@ -42,6 +42,8 @@ import { GarageSwitcher } from './garage-switcher';
 import type { Permission } from '@/lib/permissions';
 import { roleLabel } from '@/lib/permissions';
 import { OnboardingTour } from './onboarding-tour';
+import { AccountScreen } from './account-screen';
+import { AccountNotifications } from './account-notifications';
 const pagePermissions: Record<string, Permission> = {
   garage: 'garage.view',
   tasks: 'garage.view',
@@ -66,10 +68,12 @@ const navigation = [
 ];
 
 export function AppShell({ initialPage }: { initialPage?: string }) {
-  const { state, user, connected, refresh, notify, can, request, training } = useGarage();
+  const { state, user, account, connected, refresh, notify, can, request, training } = useGarage();
   const pageAllowed = (id: string) => !pagePermissions[id] || can(pagePermissions[id]);
   const [requestedPage, setPage] = useState(
-    initialPage ?? (user.role === 'mechanic' ? 'tasks' : 'garage'),
+    initialPage ??
+      account?.preferences?.initialPage ??
+      (user.role === 'mechanic' ? 'tasks' : 'garage'),
   );
   const page = pageAllowed(requestedPage) ? requestedPage : 'team';
   const [search, setSearch] = useState('');
@@ -94,9 +98,12 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
   }, []);
   const title =
     navigation.find((n) => n.id === page)?.title ??
-    (page === 'messages' ? 'Messages' : 'Paramètres');
+    (page === 'messages' ? 'Messages' : page === 'account' ? 'Mon compte' : 'Paramètres du garage');
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      data-reduced-motion={account?.preferences?.reducedMotion || undefined}
+    >
       {menu && (
         <button
           className="mobile-scrim"
@@ -189,7 +196,7 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
             <Radio size={16} />
           </div>
           <div className="sidebar-user">
-            <Avatar name={user.name} color={user.color} />
+            <Avatar avatar={user.avatar} name={user.name} color={user.color} />
             <div>
               <strong>{user.name}</strong>
               <small>{roleLabel(state, user)}</small>
@@ -232,22 +239,31 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
               <i className={connected ? '' : 'offline'} />
               {connected ? 'En direct' : 'Hors connexion'}
             </span>
-            <button
-              className="notification-button icon-button"
-              aria-label={`${draftCount} messages à valider`}
-              onClick={() => navigate('messages')}
-            >
-              <Bell size={19} />
-              {draftCount > 0 && <i />}
-            </button>
+            {account && !training ? (
+              <AccountNotifications
+                onNavigate={(destination, vehicleId) => {
+                  navigate(destination);
+                  if (vehicleId) setSelected(vehicleId);
+                }}
+              />
+            ) : (
+              <button
+                className="notification-button icon-button"
+                aria-label={`${draftCount} messages à valider`}
+                onClick={() => navigate('messages')}
+              >
+                <Bell size={19} />
+                {draftCount > 0 && <i />}
+              </button>
+            )}
             <button
               className="profile-button"
               disabled={training}
-              title="Changer de profil de démonstration"
+              title={state.demo ? 'Changer de profil de démonstration' : 'Mon compte'}
               aria-label="Options du profil"
               onClick={() => setProfile(!profile)}
             >
-              <Avatar name={user.name} color={user.color} small />
+              <Avatar avatar={user.avatar} name={user.name} color={user.color} small />
               <ChevronDown size={13} />
             </button>
           </div>
@@ -263,7 +279,7 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
                       await refresh();
                     }}
                   >
-                    <Avatar name={u.name} color={u.color} small />
+                    <Avatar avatar={u.avatar} name={u.name} color={u.color} small />
                     <span>
                       {u.name}
                       <small>{roleLabel(state, u)}</small>
@@ -274,11 +290,11 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
               <button
                 onClick={() => {
                   setProfile(false);
-                  navigate('settings');
+                  navigate('account');
                 }}
               >
                 <Settings2 size={16} />
-                Paramètres du compte
+                Mon compte
               </button>
             </div>
           )}
@@ -345,6 +361,7 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
             {page === 'team' && <TeamScreen />}
             {page === 'messages' && <MessagesScreen />}
             {page === 'settings' && <SettingsScreen />}
+            {page === 'account' && <AccountScreen />}
           </div>
           <footer className="workspace-footer">
             <span>CaRM · Le garage, en mouvement.</span>

@@ -311,6 +311,7 @@ export function ServiceWing({
             index={index}
             color={owner.color}
             name={`${owner.name} · Patron`}
+            avatar={owner.avatar}
             animate={false}
             resting
             location="office"

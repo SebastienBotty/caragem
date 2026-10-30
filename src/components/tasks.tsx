@@ -77,7 +77,7 @@ export function TaskCard({
                 const u = state.users.find((u) => u.id === id)!;
                 return (
                   <span key={id}>
-                    <Avatar name={u.name} color={u.color} small />
+                    <Avatar avatar={u.avatar} name={u.name} color={u.color} small />
                     <small>{u.name.split(' ')[0]}</small>
                   </span>
                 );
@@ -200,7 +200,7 @@ export function TaskCard({
           >
             {state.users.map((u) => (
               <label className="user-check" key={u.id}>
-                <Avatar name={u.name} color={u.color} />
+                <Avatar avatar={u.avatar} name={u.name} color={u.color} />
                 <span>
                   <strong>{u.name}</strong>
                   <small>{roleLabel(state, u)}</small>

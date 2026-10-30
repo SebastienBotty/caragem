@@ -64,7 +64,7 @@ export function TeamScreen() {
             .filter((t) => t.assignees.includes(u.id));
           return (
             <article className="team-card" key={u.id}>
-              <Avatar name={u.name} color={u.color} />
+              <Avatar avatar={u.avatar} name={u.name} color={u.color} />
               <h3>
                 {u.name}
                 {u.id === user.id && <small>Vous</small>}

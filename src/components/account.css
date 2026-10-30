@@ -1,0 +1,45 @@
+.account-grid > section {
+  min-width: 0;
+}
+.account-grid .permission-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.account-grid .permission-row input {
+  flex: 0 0 auto;
+  width: auto;
+}
+.account-grid .permission-row span {
+  flex: 1;
+}
+.account-grid img.account-avatar,
+.account-avatar-preview {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.mechanic-name img {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.app-shell[data-reduced-motion='true'] *,
+.app-shell[data-reduced-motion='true'] *::before,
+.app-shell[data-reduced-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+.account-grid code {
+  overflow-wrap: anywhere;
+}

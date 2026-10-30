@@ -3,6 +3,7 @@ import {
   Component,
   Suspense,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -40,6 +41,8 @@ import { Mechanic } from './mechanic';
 import { BreakRoom } from './break-room';
 import { vehicleBrand } from '@/lib/vehicle-brand';
 import { VehiclePriority } from './vehicle-priority';
+import { GarageContext } from './provider';
+import { scenePreferences } from '@/lib/scene-preferences';
 
 function Lift({ x, z }: { x: number; z: number }) {
   return (
@@ -131,6 +134,7 @@ function Car({
 
   useFrame((_, dt) => {
     if (crew.current) crew.current.visible = waypoints.current.length === 0;
+    if (!animate) return;
     const group = ref.current;
     const next = waypoints.current[0];
     if (!group || !next) return;
@@ -249,6 +253,7 @@ function Car({
             index={index}
             color={worker.color}
             name={worker.name}
+            avatar={worker.avatar}
             animate={animate}
           />
         ))}
@@ -412,12 +417,14 @@ function Camera({
   zones,
   zoom,
   reset,
+  animate,
 }: {
   garageId?: string;
   focus: string;
   zones: ZoneLayout[];
   zoom: number;
   reset: number;
+  animate: boolean;
 }) {
   const ref = useRef<OrbitControlsImpl>(null);
   const { camera, size } = useThree();
@@ -488,7 +495,7 @@ function Camera({
   }, [zoom, camera, persist]);
   useFrame((_, dt) => {
     if (!moving.current || !ref.current) return;
-    const t = 1 - Math.exp(-5 * dt);
+    const t = animate ? 1 - Math.exp(-5 * dt) : 1;
     camera.position.lerp(position.current, t);
     ref.current.target.lerp(target.current, t);
     ref.current.update();
@@ -506,7 +513,7 @@ function Camera({
       touches={{ ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN }}
       minDistance={9}
       maxDistance={1500}
-      enableDamping
+      enableDamping={animate}
       onChange={() => {
         if (ref.current)
           view.current = {
@@ -553,6 +560,7 @@ export default function GarageScene({
   onOpenStock: () => void;
   preview?: boolean;
 }) {
+  const garage = useContext(GarageContext);
   const previousPlacement = useRef<ReturnType<typeof garagePlacement> | undefined>(undefined);
   const placement = useMemo(() => garagePlacement(state, previousPlacement.current), [state]);
   useLayoutEffect(() => {
@@ -561,7 +569,12 @@ export default function GarageScene({
   const { zones, positions } = placement;
   const [zoom, setZoom] = useState(0);
   const [reset, setReset] = useState(0);
-  const [animate, setAnimate] = useState(false);
+  const [environment, setEnvironment] = useState({
+    coarsePointer: false,
+    smallScreen: false,
+    reducedMotion: true,
+  });
+  const { animate, lowQuality } = scenePreferences(garage?.account?.preferences, environment);
   const initialCamera = useMemo(
     () => ({
       position: [40, 45, 45] as [number, number, number],
@@ -573,11 +586,19 @@ export default function GarageScene({
     [preview],
   );
   useEffect(() => {
-    const q = matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setAnimate(!q.matches);
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const coarsePointer = matchMedia('(pointer: coarse)');
+    const smallScreen = matchMedia('(max-width: 800px)');
+    const update = () =>
+      setEnvironment({
+        coarsePointer: coarsePointer.matches,
+        smallScreen: smallScreen.matches,
+        reducedMotion: reducedMotion.matches,
+      });
     update();
-    q.addEventListener('change', update);
-    return () => q.removeEventListener('change', update);
+    const queries = [reducedMotion, coarsePointer, smallScreen];
+    queries.forEach((query) => query.addEventListener('change', update));
+    return () => queries.forEach((query) => query.removeEventListener('change', update));
   }, []);
   const site = garageSite(zones);
   const assignments = mechanicAssignments(state);
@@ -611,11 +632,15 @@ export default function GarageScene({
       </div>
       <SceneBoundary fallback={fallback}>
         <Canvas
-          shadows
-          dpr={[1, 1.6]}
+          key={lowQuality ? 'low' : 'high'}
+          shadows={!lowQuality}
+          dpr={lowQuality ? 1 : [1, 1.6]}
           camera={initialCamera}
           fallback={fallback}
-          gl={{ antialias: true, powerPreference: 'high-performance' }}
+          gl={{
+            antialias: !lowQuality,
+            powerPreference: lowQuality ? 'low-power' : 'high-performance',
+          }}
         >
           <color attach="background" args={['#d9dfd9']} />
           <fog attach="fog" args={['#d9dfd9', 200, 700]} />
@@ -625,7 +650,7 @@ export default function GarageScene({
             color="#fff0d1"
             position={[-25, 45, 20]}
             intensity={2.7}
-            castShadow
+            castShadow={!lowQuality}
             shadow-mapSize={[2048, 2048]}
             shadow-camera-left={-55}
             shadow-camera-right={55}
@@ -666,21 +691,24 @@ export default function GarageScene({
                 zones={zones}
               />
             ))}
-          <ContactShadows
-            position={[0, -0.9, (site.maxZ + site.minZ) / 2]}
-            opacity={0.23}
-            scale={130}
-            blur={2.5}
-            far={15}
-            resolution={512}
-            frames={1}
-          />
+          {!lowQuality && (
+            <ContactShadows
+              position={[0, -0.9, (site.maxZ + site.minZ) / 2]}
+              opacity={0.23}
+              scale={130}
+              blur={2.5}
+              far={15}
+              resolution={512}
+              frames={1}
+            />
+          )}
           <Camera
             garageId={preview ? undefined : state.id}
             focus={focus}
             zones={zones}
             zoom={zoom}
             reset={reset}
+            animate={animate}
           />
         </Canvas>
       </SceneBoundary>

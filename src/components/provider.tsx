@@ -40,6 +40,7 @@ export async function request<T = Record<string, unknown>>(
     'garages',
     'switch-garage',
     'accept-invitation',
+    'account/email/confirm',
   ].includes(path);
   if (changesSession) sessionStorage.removeItem('carm-demo-user');
   if (changesSession) {
@@ -127,6 +128,8 @@ export function GarageProvider({
       if (reason === 'io server disconnect') void onSessionChange();
     });
     s.on('garage:state', accept);
+    s.on('account:changed', () => void onSessionChange());
+    s.on('account:refresh', () => void onSessionChange());
     s.on('connect_error', () => setConnected(false));
     return () => {
       s.disconnect();

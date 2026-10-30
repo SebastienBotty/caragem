@@ -7,6 +7,7 @@ import ts from 'typescript';
 import * as THREE from 'three';
 import * as layout from '../src/lib/layout.ts';
 import * as domain from '../src/lib/domain.ts';
+import * as scene from '../src/lib/scene-preferences.ts';
 
 test('camera preserves wheel and button zoom through actions, resize and remount; only explicit framing resets it', () => {
   const require = createRequire(import.meta.url);
@@ -14,10 +15,12 @@ test('camera preserves wheel and button zoom through actions, resize and remount
   const listeners = new Map<string, () => void>();
   let active: any;
   let context: any;
+  let accountContext: any = null;
   const equal = (a: unknown[], b?: unknown[]) =>
     b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
   const react = {
     ...require('react'),
+    useContext: () => accountContext,
     useRef(value: unknown) {
       const index = active.index++;
       return (active.slots[index] ??= { current: value });
@@ -52,6 +55,7 @@ test('camera preserves wheel and button zoom through actions, resize and remount
     zod: require('zod'),
     '@/lib/layout': layout,
     '@/lib/domain': domain,
+    '@/lib/scene-preferences': scene,
     '@react-three/fiber': {
       useThree: () => context,
       useFrame: (fn: unknown) => (active.frame = fn),
@@ -131,7 +135,7 @@ test('camera preserves wheel and button zoom through actions, resize and remount
         element.props.onChange();
       },
     };
-    let props = { ...cameraProps.props, garageId };
+    let props = { ...cameraProps.props, animate: true, garageId };
     const render = (changes = {}) => {
       props = { ...props, ...changes };
       active = hooks;
@@ -148,6 +152,12 @@ test('camera preserves wheel and button zoom through actions, resize and remount
       controls,
       size,
       render,
+      frame() {
+        hooks.frame({}, 0.1);
+      },
+      damping() {
+        return element.props.enableDamping;
+      },
       settle() {
         for (let i = 0; i < 120; i++) hooks.frame({}, 0.1);
       },
@@ -199,6 +209,11 @@ test('camera preserves wheel and button zoom through actions, resize and remount
   restored.settle();
   const expected = layout.garageCamera(cameraProps.props.zones, 'workshop', 2);
   assert.ok(restored.camera.position.distanceTo(new THREE.Vector3(...expected.position)) < 0.04);
+  restored.render({ animate: false, focus: 'diagnosis' });
+  restored.frame();
+  const immediate = layout.garageCamera(cameraProps.props.zones, 'diagnosis', 2);
+  assert.ok(restored.camera.position.distanceTo(new THREE.Vector3(...immediate.position)) < 1e-8);
+  assert.equal(restored.damping(), false);
   restored.dispose();
   const other = mount('camera-b');
   other.settle();
@@ -214,4 +229,16 @@ test('camera preserves wheel and button zoom through actions, resize and remount
   invalid.settle();
   assert.ok(invalid.camera.position.toArray().every(Number.isFinite));
   invalid.dispose();
+  accountContext = { account: { preferences: { graphicsQuality: 'low', reducedMotion: true } } };
+  active = { index: 0, slots: [], effects: [] };
+  const lowTree = nodes(exports.default(sceneProps));
+  const lowCanvas = lowTree.find((node) => node.props.camera);
+  assert.equal(lowCanvas.props.dpr, 1);
+  assert.equal(lowCanvas.props.shadows, false);
+  assert.equal(lowCanvas.props.gl.antialias, false);
+  assert.equal(
+    lowTree.some((node) => node.type === 'ContactShadows'),
+    false,
+  );
+  assert.equal(lowTree.find((node) => node.props.reset !== undefined).props.animate, false);
 });

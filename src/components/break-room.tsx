@@ -172,7 +172,14 @@ export function BreakRoom({
         ];
         return (
           <group key={user.id} position={[x, 0, z]} rotation={[0, angle, 0]}>
-            <Mechanic index={index} color={user.color} name={user.name} animate={animate} resting />
+            <Mechanic
+              index={index}
+              color={user.color}
+              name={user.name}
+              avatar={user.avatar}
+              animate={animate}
+              resting
+            />
           </group>
         );
       })}
