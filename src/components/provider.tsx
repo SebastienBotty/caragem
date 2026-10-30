@@ -13,7 +13,6 @@ import type { Action, GarageState, User } from '@/lib/domain';
 import type { AccountSummary, GarageAccess } from '@/lib/account';
 import { can as hasPermission, type Permission } from '@/lib/permissions';
 import { billingAccess, requireWritable } from '@/lib/billing';
-import { BillingNotice } from './billing';
 import { AccountTheme } from './account-theme';
 
 export async function request<T = Record<string, unknown>>(
@@ -172,7 +171,6 @@ export function GarageProvider({
     >
       {children}
       <AccountTheme theme={initial.account?.preferences?.theme} />
-      <BillingNotice />
       {toast && (
         <div className="toast" role="status">
           {toast}

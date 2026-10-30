@@ -110,7 +110,7 @@ export function BillingCard() {
   );
 }
 
-export function BillingNotice() {
+export function BillingNotice({ visible = true }: { visible?: boolean }) {
   const { state, user, training, request, refresh, notify } = useGarage();
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -133,12 +133,14 @@ export function BillingNotice() {
   const access = billingAccess(state.billing);
   return (
     <>
-      {(access === 'trial' || access === 'readonly') && (
+      {visible && (
         <div className={`billing-notice ${access}`} role="status">
           <span>
             {access === 'trial'
-              ? `Essai gratuit : ${Math.max(1, Math.ceil((state.billing.trialEndsAt - Date.now()) / 86400000))} jour(s) restant(s).`
-              : 'Garage en lecture seule. Vos données sont conservées.'}
+              ? `Essai : ${Math.max(1, Math.ceil((state.billing.trialEndsAt - Date.now()) / 86400000))} jour(s)`
+              : access === 'paid'
+                ? 'Abonnement actif'
+                : 'Lecture seule'}
           </span>
           {user.role === 'owner' ? (
             <Button onClick={() => setOpen(true)}>Abonnement</Button>

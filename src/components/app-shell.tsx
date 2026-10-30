@@ -44,6 +44,7 @@ import { roleLabel } from '@/lib/permissions';
 import { OnboardingTour } from './onboarding-tour';
 import { AccountScreen } from './account-screen';
 import { AccountNotifications } from './account-notifications';
+import { BillingNotice } from './billing';
 const pagePermissions: Record<string, Permission> = {
   garage: 'garage.view',
   tasks: 'garage.view',
@@ -311,7 +312,10 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
                 })}
                 {state.demo && <span>GARAGE DÉMO</span>}
               </div>
-              <h1>{page === 'garage' ? 'Votre garage, en un coup d’œil.' : title}</h1>
+              <div className="garage-heading-title">
+                <h1>{page === 'garage' ? 'Votre garage, en un coup d’œil.' : title}</h1>
+                <BillingNotice visible={page === 'garage'} />
+              </div>
               {page === 'garage' && (
                 <p>Chaque voiture à sa place. Toute l’équipe dans le même élan.</p>
               )}
