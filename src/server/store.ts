@@ -1,4 +1,5 @@
 import { UserError } from '../lib/errors.ts';
+import { requireWritable, type Billing } from '../lib/billing.ts';
 import { readFileSync } from 'node:fs';
 import { createHash, randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from 'node:crypto';
 import {
@@ -109,11 +110,20 @@ export class Store {
       if (row.state.demoExpires <= Date.now())
         throw new UserError('Le garage de démonstration a expiré.');
     }
+    if (!row.state.demo) {
+      const [billing] = await this.rows<Billing>(
+        'SELECT trial_ends_at::float8 AS "trialEndsAt", paid_until::float8 AS "paidUntil", status, cancel_at_period_end AS "cancelAtPeriodEnd" FROM garage_billing WHERE garage_id=$1',
+        [id],
+        sql,
+      );
+      row.state.billing = billing;
+    }
     return row.state;
   }
   async save(state: GarageState, sql: Sql = this.db) {
     await this.ready;
-    const serialized = JSON.stringify(state);
+    const { billing: _billing, ...businessState } = state;
+    const serialized = JSON.stringify(businessState);
     if (Buffer.byteLength(serialized) > 10 * 1024 * 1024)
       throw new UserError(
         'Le garage atteint la limite de 10 Mio. Contactez le responsable de l’hébergement.',
@@ -122,10 +132,20 @@ export class Store {
       'INSERT INTO garages(id,state) VALUES($1,$2::jsonb) ON CONFLICT(id) DO UPDATE SET state=excluded.state',
       [state.id, serialized],
     );
+    if (!state.demo)
+      await sql.query('INSERT INTO garage_billing(garage_id) VALUES($1) ON CONFLICT DO NOTHING', [
+        state.id,
+      ]);
   }
-  async updateGarage<T>(id: string, change: (state: GarageState, sql: Sql) => T | Promise<T>) {
+  async updateGarage<T>(
+    id: string,
+    change: (state: GarageState, sql: Sql) => T | Promise<T>,
+    finishPendingMail = false,
+  ) {
     return this.atomic(async (sql) => {
       const state = await this.get(id, sql, true);
+      // ASVS 8.3.1 / 2.3.3: expiry is checked under the same lock as the business write.
+      if (!finishPendingMail) requireWritable(state);
       const result = await change(state, sql);
       await this.save(state, sql);
       return { state, result };
@@ -375,6 +395,7 @@ export class Store {
     if (!invite)
       throw new UserError('Invitation invalide ou expirée, ou destinée à une autre adresse mail.');
     const state = await this.get(invite.garage_id, sql, true);
+    requireWritable(state);
     if (!invite.inviter_id)
       throw new UserError('Cette invitation doit être renouvelée par le responsable.');
     this.invitationRole(state, invite.inviter_id, invite.role, invite.custom_role_id ?? undefined);
@@ -499,6 +520,7 @@ export class Store {
   async invite(session: Session, email: string, role: User['role'], customRoleId?: string) {
     return this.atomic(async (sql) => {
       const state = await this.get(session.garageId, sql, true);
+      requireWritable(state);
       if (state.demo && session.email)
         throw new UserError('Les invitations réelles sont désactivées dans la démonstration.');
       role = this.invitationRole(state, session.userId, role, customRoleId).role;
@@ -582,11 +604,17 @@ export class Store {
     );
   }
   async revokeInvitation(session: Session, id: string) {
-    await this.invitations(session);
-    await this.db.query('DELETE FROM invitations WHERE garage_id=$1 AND id=$2', [
-      session.garageId,
-      id,
-    ]);
+    await this.updateGarage(session.garageId, async (state, sql) => {
+      requirePermission(
+        state,
+        state.users.find((u) => u.id === session.userId)!,
+        'team.invite',
+      );
+      await sql.query('DELETE FROM invitations WHERE garage_id=$1 AND id=$2', [
+        session.garageId,
+        id,
+      ]);
+    });
   }
   async useInvitation(token: string) {
     await this.db.query('DELETE FROM invitations WHERE token_hash=$1', [digest(token)]);

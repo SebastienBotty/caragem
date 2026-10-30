@@ -165,6 +165,7 @@ export type Appointment = {
   arrived: boolean;
 };
 export type GarageState = {
+  billing?: import('./billing.ts').Billing;
   id: string;
   demo: boolean;
   demoExpires?: number;

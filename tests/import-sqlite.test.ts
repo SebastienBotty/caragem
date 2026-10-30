@@ -36,7 +36,9 @@ test('SQLite import preserves garage data, account hashes, sessions and invitati
       .run(digest(invitation), state.id, 'invite@example.com', 'mechanic', expires);
     const legacy = readLegacyDatabase(path);
     await importLegacyDatabase(target, legacy);
-    assert.deepEqual(await target.get(state.id), state);
+    const { billing, ...imported } = await target.get(state.id);
+    assert.deepEqual(imported, state);
+    assert.ok(billing!.trialEndsAt > Date.now());
     assert.equal((await target.account('legacy@example.com'))?.hash, hash);
     assert.equal((await target.session(`carm_session=${token}`))?.email, 'legacy@example.com');
     assert.equal((await target.invitation(invitation, 'invite@example.com'))?.garage_id, state.id);

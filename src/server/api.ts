@@ -210,24 +210,32 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
             disableFileAccess: true,
             disableUrlAccess: true,
           });
-          const { state: current } = await store.updateGarage(s.id, (current) => {
-            const m = current.mails.find((m) => m.id === input.id)!;
-            m.status = 'sent';
-            m.sentAt = new Date().toISOString();
-            m.sentBy = actor.name;
-            m.error = undefined;
-            current.revision++;
-            log(current, `Mail envoyé : ${m.subject}`, actor.name);
-          });
+          const { state: current } = await store.updateGarage(
+            s.id,
+            (current) => {
+              const m = current.mails.find((m) => m.id === input.id)!;
+              m.status = 'sent';
+              m.sentAt = new Date().toISOString();
+              m.sentBy = actor.name;
+              m.error = undefined;
+              current.revision++;
+              log(current, `Mail envoyé : ${m.subject}`, actor.name);
+            },
+            true,
+          );
           await broadcast(s.id);
           send(200, { state: visibleState(current, session.userId) });
         } catch {
-          await store.updateGarage(s.id, (current) => {
-            const m = current.mails.find((m) => m.id === input.id)!;
-            m.status = 'failed';
-            m.error = 'Échec de l’envoi SMTP. Vérifiez la configuration avant de réessayer.';
-            current.revision++;
-          });
+          await store.updateGarage(
+            s.id,
+            (current) => {
+              const m = current.mails.find((m) => m.id === input.id)!;
+              m.status = 'failed';
+              m.error = 'Échec de l’envoi SMTP. Vérifiez la configuration avant de réessayer.';
+              current.revision++;
+            },
+            true,
+          );
           await broadcast(s.id);
           send(502, { error: 'Échec de l’envoi SMTP. Le brouillon est conservé.' });
         }

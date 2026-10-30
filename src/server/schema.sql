@@ -1,4 +1,16 @@
 CREATE TABLE IF NOT EXISTS garages (id TEXT PRIMARY KEY, state JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS garage_billing (
+  garage_id TEXT PRIMARY KEY REFERENCES garages(id) ON DELETE CASCADE,
+  trial_ends_at BIGINT NOT NULL DEFAULT (floor(extract(epoch FROM now())*1000)::bigint + 1209600000),
+  paid_until BIGINT NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'none',
+  cancel_at_period_end BOOLEAN NOT NULL DEFAULT false,
+  stripe_customer TEXT UNIQUE,
+  stripe_subscription TEXT UNIQUE,
+  checkout_id TEXT,
+  checkout_expires BIGINT
+);
+INSERT INTO garage_billing(garage_id) SELECT id FROM garages WHERE state->>'demo'='false' ON CONFLICT DO NOTHING;
 CREATE TABLE IF NOT EXISTS accounts (email TEXT PRIMARY KEY, hash TEXT NOT NULL, name TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 ALTER TABLE garages ADD COLUMN IF NOT EXISTS demo_account_email TEXT REFERENCES accounts(email);
 CREATE UNIQUE INDEX IF NOT EXISTS garages_demo_account ON garages(demo_account_email);
