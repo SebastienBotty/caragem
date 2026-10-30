@@ -15,9 +15,13 @@ import { broadcastGarage } from './realtime.ts';
 import { dataTransferApi } from './data-transfer-api.ts';
 import { vehiclePhotoApi } from './vehicle-photo-api.ts';
 import { createBillingApi, type BillingConfig } from './billing-api.ts';
+import { accountProfileApi } from './account-profile-api.ts';
 import { accountSecurityApi } from './account-security-api.ts';
 const knownRoutes = new Set([
   '/api/session',
+  '/api/account/profile',
+  '/api/account/email/start',
+  '/api/account/email/confirm',
   '/api/account/security',
   '/api/account/security/sessions/revoke',
   '/api/account/security/2fa/setup',
@@ -131,19 +135,22 @@ export function createApi(
               req,
               path === '/api/vehicle-photos'
                 ? 12 * 1024 * 1024
-                : [
-                      '/api/data-transfer/preview',
-                      '/api/data-transfer/import',
-                      '/api/data-transfer/read',
-                    ].includes(path)
-                  ? 4 * 1024 * 1024
-                  : 128000,
+                : path === '/api/account/profile'
+                  ? 3 * 1024 * 1024
+                  : [
+                        '/api/data-transfer/preview',
+                        '/api/data-transfer/import',
+                        '/api/data-transfer/read',
+                      ].includes(path)
+                    ? 4 * 1024 * 1024
+                    : 128000,
             )
           : undefined;
       session = await store.session(req.headers.cookie, req.headers['x-carm-demo-user']);
       if (await google(req, res, path, inputBody, session, send)) return true;
       if (await accountSecurityApi(store, io, req, res, path, inputBody, session, send))
         return true;
+      if (await accountProfileApi(store, io, req, res, path, inputBody, session, send)) return true;
       if (await accountApi(store, io, req, res, path, inputBody, session, send)) return true;
       if (!session) {
         send(401, { error: 'Connectez-vous pour continuer.' });
