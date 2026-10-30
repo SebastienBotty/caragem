@@ -18,7 +18,15 @@ Les dates financières sont dans `garage_billing`, séparées du JSON métier ; 
 
 Sans configuration Stripe, l’essai et la lecture seule fonctionnent ; les boutons de souscription sont indisponibles. L’application ne fabrique jamais un succès de paiement local.
 
-## Cycle de vie
+## Développement local sans entreprise créée
+
+Le projet peut être testé entièrement dans un environnement Stripe de test, avec des coordonnées de vendeur fictives et une immatriculation de test. La configuration locale de démonstration utilise la Belgique et le code Stripe **SaaS – usage professionnel** (`txcd_10103001`), avec le tarif de **25 € TTC par mois**. Ces données servent aux simulations : elles ne constituent ni une entreprise ni une immatriculation fiscale réelle.
+
+Les clés, l’identifiant du prix et le secret du webhook restent dans le fichier `.env` local ignoré par Git. Le CLI doit être connecté au même environnement que la clé de l’application. Pour transférer les événements vers le serveur local, maintenir `stripe listen --forward-to localhost:3000/api/billing/webhook` en fonctionnement et utiliser son secret de signature dans `STRIPE_WEBHOOK_SECRET`. Le relais s’arrête à la fermeture de son processus ; il faut le relancer après un redémarrage du poste. Redémarrer aussi le serveur CaRM après toute modification du `.env`.
+
+La préparation locale a été vérifiée auprès du vrai sandbox Stripe : compte et clé de test, produit, prix, portail client, calcul de TVA incluse, création puis expiration d’un Checkout de test et endpoint local acceptant une signature valide et refusant une signature invalide. Un paiement par carte, le 3-D Secure et les renouvellements restent à exercer avant une mise en production. La configuration réelle exigera les informations de l’entreprise et des réglages fiscaux adaptés à sa situation.
+
+## Cycle de vie de l’abonnement
 
 - Souscription pendant l’essai : premier prélèvement à sa date de fin initiale, sans nouveau délai de 14 jours. Checkout impose 48 h minimum pour `trial_end` ; durant les dernières 48 h, une première période gratuite jusqu’à cette même date est utilisée avec `billing_cycle_anchor` et `proration_behavior=none`.
 - Une période est ouverte comme payée après vérification d’une facture payée non gratuite auprès de Stripe. Le retour `?billing=success` seul n’accorde rien. Les factures gratuites d’essai n’allongent pas l’accès payé.
