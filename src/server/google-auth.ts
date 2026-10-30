@@ -9,6 +9,7 @@ import { appOrigin, cookie, type Reply } from './http.ts';
 import { authAttemptAllowed } from './auth-rate-limit.ts';
 import { broadcastGarage } from './realtime.ts';
 import { securityEvent } from './security-log.ts';
+import { beginGoogleTwoFactorLogin } from './account-security-api.ts';
 
 const callbackPath = '/api/auth/google/callback';
 const callbackUrl = () => new URL(callbackPath, appOrigin()).href;
@@ -136,8 +137,28 @@ export function createGoogleApi(store: Store, io: Server, configuration = google
         expectedNonce: request.nonce,
         idTokenExpected: true,
       });
-      const target = await store.googleAccount(googleProfile(tokens.claims()!), request);
-      const token = await store.newSession(target.garageId, target.userId);
+      const profile = googleProfile(tokens.claims()!);
+      if (await beginGoogleTwoFactorLogin(store, req, res, profile, request)) {
+        const existingCookies = res.getHeader('Set-Cookie');
+        res.setHeader('Set-Cookie', [
+          ...(Array.isArray(existingCookies)
+            ? existingCookies
+            : existingCookies
+              ? [String(existingCookies)]
+              : []),
+          transactionCookie('', 0),
+        ]);
+        res.writeHead(303, { Location: '/?two_factor=required' });
+        res.end();
+        return true;
+      }
+      const target = await store.googleAccount(profile, request);
+      const token = await store.newSession(
+        target.garageId,
+        target.userId,
+        String(req.headers['user-agent'] ?? '').slice(0, 300),
+        Date.now(),
+      );
       await store.logout(session);
       if (session) io.in(`session:${session.tokenHash}`).disconnectSockets();
       if (request.previousSessionHash) {

@@ -15,8 +15,16 @@ import { broadcastGarage } from './realtime.ts';
 import { dataTransferApi } from './data-transfer-api.ts';
 import { vehiclePhotoApi } from './vehicle-photo-api.ts';
 import { createBillingApi, type BillingConfig } from './billing-api.ts';
+import { accountSecurityApi } from './account-security-api.ts';
 const knownRoutes = new Set([
   '/api/session',
+  '/api/account/security',
+  '/api/account/security/sessions/revoke',
+  '/api/account/security/2fa/setup',
+  '/api/account/security/2fa/enable',
+  '/api/account/security/2fa/disable',
+  '/api/auth/2fa/status',
+  '/api/auth/2fa/verify',
   '/api/billing',
   '/api/billing/checkout',
   '/api/billing/portal',
@@ -134,6 +142,8 @@ export function createApi(
           : undefined;
       session = await store.session(req.headers.cookie, req.headers['x-carm-demo-user']);
       if (await google(req, res, path, inputBody, session, send)) return true;
+      if (await accountSecurityApi(store, io, req, res, path, inputBody, session, send))
+        return true;
       if (await accountApi(store, io, req, res, path, inputBody, session, send)) return true;
       if (!session) {
         send(401, { error: 'Connectez-vous pour continuer.' });

@@ -68,7 +68,11 @@ export function Workspace() {
         )}
       </div>
     );
-  if (!session.state) return <Auth done={refresh} notice={authNotice} />;
+  if (
+    !session.state ||
+    new URLSearchParams(window.location.search).get('two_factor') === 'required'
+  )
+    return <Auth done={refresh} notice={authNotice} />;
   const invitation = new URLSearchParams(window.location.search).get('invitation');
   if (invitation)
     return <InvitationGate token={invitation} account={session.account} done={refresh} />;

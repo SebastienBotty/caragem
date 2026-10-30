@@ -8,6 +8,7 @@ import type { ServerResponse } from 'node:http';
 import { authAttemptAllowed } from './auth-rate-limit.ts';
 import { visibleState, roleLabel } from '../lib/permissions.ts';
 import { broadcastGarage } from './realtime.ts';
+import { beginTwoFactorLogin } from './account-security-api.ts';
 const credentials = z.object({
   email: z
     .email()
@@ -30,8 +31,19 @@ export async function accountApi(
   send: Reply,
 ): Promise<boolean> {
   const broadcast = async (id: string) => broadcastGarage(io, await store.get(id));
-  const establish = async (garageId: string, userId: string) => {
-    const token = await store.newSession(garageId, userId);
+  const establish = async (
+    garageId: string,
+    userId: string,
+    authenticatedAt = session?.authenticatedAt ?? 0,
+    twoFactorVerified = session?.twoFactorVerified ?? false,
+  ) => {
+    const token = await store.newSession(
+      garageId,
+      userId,
+      String(req.headers['user-agent'] ?? '').slice(0, 300),
+      authenticatedAt,
+      twoFactorVerified,
+    );
     await store.logout(session);
     if (session) io.in(`session:${session.tokenHash}`).disconnectSockets();
     res.setHeader('Set-Cookie', cookie(token));
@@ -57,6 +69,11 @@ export async function accountApi(
                   hasPassword: Boolean(account.hash),
                   googleLinked: account.googleLinked,
                   demoExpires: account.demoExpires ?? undefined,
+                  firstName: account.firstName,
+                  lastName: account.lastName,
+                  avatar: account.avatar,
+                  preferences: account.preferences,
+                  twoFactorEnabled: account.twoFactorEnabled,
                 }
               : null,
             garages: account ? await store.garages(account.email) : [],
@@ -137,17 +154,36 @@ export async function accountApi(
           send(401, { error: 'Adresse mail ou mot de passe incorrect.' });
           return true;
         }
+        const garages = await store.garages(account.email);
+        const preferred =
+          garages.find((g) => g.id === account.preferences?.defaultGarageId) ?? garages[0];
+        if (
+          await beginTwoFactorLogin(store, req, res, {
+            email: account.email,
+            garageId: preferred?.id,
+            userId: preferred?.userId,
+            invitation: input.invitation,
+          })
+        ) {
+          send(200, { twoFactorRequired: true });
+          return true;
+        }
         if (input.invitation) {
           target = await store.joinGarage(account.email, input.invitation);
           await broadcast(target.garageId);
         } else {
-          const garage = (await store.garages(account.email))[0];
+          const garage = preferred;
           if (!garage) throw new UserError('Aucun garage associé à ce compte.');
           target = { garageId: garage.id, userId: garage.userId };
         }
       }
     }
-    await establish(target.garageId, target.userId);
+    await establish(
+      target.garageId,
+      target.userId,
+      path === '/api/demo' ? (session?.authenticatedAt ?? 0) : Date.now(),
+      path === '/api/demo' ? (session?.twoFactorVerified ?? false) : false,
+    );
     send(200, { ok: true });
     return true;
   }
@@ -227,7 +263,7 @@ export async function accountApi(
       throw new UserError('Mot de passe actuel incorrect.');
     await store.changePassword(session, await passwordHash(input.password));
     io.in(`account:${session.email}`).disconnectSockets();
-    await establish(session.garageId, session.userId);
+    await establish(session.garageId, session.userId, Date.now());
     send(200, { ok: true });
     return true;
   }

@@ -8,6 +8,7 @@ import { createApi } from '../src/server/api.ts';
 import { createRealtime } from '../src/server/realtime.ts';
 import { testDatabase } from './helpers/database.ts';
 import type { SessionData } from '../src/lib/account.ts';
+import { sealTotp } from '../src/lib/totp.ts';
 
 test(
   'Google OIDC verifies signed tokens, browser binding, single use, invitations and explicit linking',
@@ -104,6 +105,7 @@ test(
       origin: process.env.APP_ORIGIN,
       id: process.env.GOOGLE_CLIENT_ID,
       secret: process.env.GOOGLE_CLIENT_SECRET,
+      encryption: process.env.ACCOUNT_ENCRYPTION_KEY,
     };
     process.env.APP_ORIGIN = base;
     process.env.GOOGLE_CLIENT_ID = 'google-client';
@@ -273,6 +275,57 @@ test(
         undefined,
         'invalid invitation rolls back social account creation',
       );
+      process.env.ACCOUNT_ENCRYPTION_KEY = '91'.repeat(32);
+      const recovery = 'a4'.repeat(16);
+      await store.db.query(
+        'INSERT INTO account_security(email,enabled,secret,recovery_hashes) VALUES($1,true,$2,$3::jsonb)',
+        [
+          'existing@gmail.com',
+          sealTotp('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'),
+          JSON.stringify([digest(recovery)]),
+        ],
+      );
+      const protectedLogin = await callback(await start(), {
+        sub: 'existing-google',
+        email: 'existing@gmail.com',
+      });
+      assert.equal(protectedLogin.headers.get('location'), '/?two_factor=required');
+      assert.equal(
+        protectedLogin.headers.getSetCookie().some((c) => c.startsWith('carm_session=')),
+        false,
+        'Google cannot create a complete session before MFA',
+      );
+      const challenge = protectedLogin.headers
+        .getSetCookie()
+        .find((c) => c.startsWith('carm_2fa='))!
+        .split(';')[0];
+      const mfaVerified = await post('auth/2fa/verify', { code: recovery }, challenge);
+      assert.equal(mfaVerified.status, 200, await mfaVerified.clone().text());
+      assert.equal((await sessionData(mfaVerified)).account!.email, 'existing@gmail.com');
+      assert.equal((await store.session(sessionCookie(mfaVerified)))!.twoFactorVerified, true);
+      const mfaOwner = (await store.session(sessionCookie(mfaVerified)))!;
+      const orphanRecovery = 'b7'.repeat(16);
+      await store.db.query(
+        'INSERT INTO account_security(email,enabled,recovery_hashes) VALUES($1,true,$2::jsonb)',
+        ['new@gmail.com', JSON.stringify([digest(orphanRecovery)])],
+      );
+      await store.db.query('DELETE FROM memberships WHERE email=$1', ['new@gmail.com']);
+      const orphanInvitation = await store.invite(mfaOwner, 'new@gmail.com', 'mechanic');
+      const orphanLogin = await callback(await start({ invitation: orphanInvitation }), {
+        sub: 'google-new',
+        email: 'new@gmail.com',
+      });
+      assert.equal(orphanLogin.headers.get('location'), '/?two_factor=required');
+      assert.ok(await store.invitation(orphanInvitation, 'new@gmail.com'));
+      const orphanChallenge = orphanLogin.headers
+        .getSetCookie()
+        .find((c) => c.startsWith('carm_2fa='))!
+        .split(';')[0];
+      assert.equal(
+        (await post('auth/2fa/verify', { code: orphanRecovery }, orphanChallenge)).status,
+        200,
+      );
+      assert.equal(await store.invitation(orphanInvitation, 'new@gmail.com'), undefined);
       const expired = await start();
       await store.db.query('UPDATE google_auth_requests SET expires=$1 WHERE state_hash=$2', [
         Date.now() - 1,
@@ -289,6 +342,7 @@ test(
         APP_ORIGIN: original.origin,
         GOOGLE_CLIENT_ID: original.id,
         GOOGLE_CLIENT_SECRET: original.secret,
+        ACCOUNT_ENCRYPTION_KEY: original.encryption,
       })) {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
