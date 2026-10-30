@@ -12,6 +12,8 @@ import { io, type Socket } from 'socket.io-client';
 import type { Action, GarageState, User } from '@/lib/domain';
 import type { AccountSummary, GarageAccess } from '@/lib/account';
 import { can as hasPermission, type Permission } from '@/lib/permissions';
+import { billingAccess, requireWritable } from '@/lib/billing';
+import { BillingNotice } from './billing';
 
 export async function request<T = Record<string, unknown>>(
   path: string,
@@ -95,6 +97,11 @@ export function GarageProvider({
   const [state, setState] = useState(initial.state);
   const [connected, setConnected] = useState(false);
   const [toast, setToast] = useState('');
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => tick((n) => n + 1), 30000);
+    return () => clearInterval(timer);
+  }, []);
   const socket = useRef<Socket | null>(null);
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accept = useCallback(
@@ -102,6 +109,7 @@ export function GarageProvider({
       setState((old) => (next.id === old.id && next.revision >= old.revision ? next : old)),
     [],
   );
+  useEffect(() => accept(initial.state), [accept, initial.state]);
   const notify = useCallback((s: string) => {
     setToast(s);
     if (timeout.current) clearTimeout(timeout.current);
@@ -126,6 +134,7 @@ export function GarageProvider({
     };
   }, [accept, onSessionChange, initial.userId, initial.state.demo]);
   const act = async (a: Action) => {
+    requireWritable(state);
     const result = await request<{ state: GarageState }>('actions', a);
     accept(result.state);
     return result.state;
@@ -145,7 +154,11 @@ export function GarageProvider({
         connected,
         smtp: initial.smtp,
         account: initial.account,
-        can: (permission) => hasPermission(state, user, permission),
+        can: (permission) =>
+          hasPermission(state, user, permission) &&
+          (billingAccess(state.billing) !== 'readonly' ||
+            permission.endsWith('.view') ||
+            permission === 'mail.send'),
         garages: initial.garages,
         act,
         notify,
@@ -154,6 +167,7 @@ export function GarageProvider({
       }}
     >
       {children}
+      <BillingNotice />
       {toast && (
         <div className="toast" role="status">
           {toast}

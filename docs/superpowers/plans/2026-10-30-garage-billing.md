@@ -8,9 +8,9 @@ Les garages existants reçoivent 14 jours à la migration. Les espaces de démon
 
 ## Plan d’exécution
 
-- [ ] Essai et lecture seule : table `garage_billing`, projection publique dans `GarageState`, contrôle transactionnel des écritures dans Store, invitations incluses. Tests limites temporelles, persistance, API, isolement des garages. Commit distinct.
-- [ ] Stripe : Checkout abonnement, portail propriétaire uniquement, prix EUR 2500 mensuel inclusif vérifié côté serveur, signatures sur corps brut, synchronisation depuis l’abonnement courant pour résister aux relectures/événements désordonnés, verrou par garage contre les doubles achats. Tests avec transport Stripe simulé et webhooks signés. Commit distinct.
-- [ ] Interface : statut, dates, montant, souscription/gestion dans les paramètres et avertissement global ; rafraîchissement temporel et au retour du paiement. Documentation des variables et configuration Stripe Tax avant activation réelle. Vérification TypeScript, suite complète, build et navigateur.
+- [x] Essai et lecture seule : table `garage_billing`, projection publique dans `GarageState`, contrôle transactionnel des écritures dans Store, invitations incluses. Tests limites temporelles, persistance, API, isolement des garages. Commit distinct.
+- [x] Stripe : Checkout abonnement, portail propriétaire uniquement, prix EUR 2500 mensuel inclusif vérifié côté serveur, signatures sur corps brut, synchronisation depuis l’abonnement courant pour résister aux relectures/événements désordonnés, verrou par garage contre les doubles achats. Tests avec transport Stripe simulé et webhooks signés. Commit distinct.
+- [x] Interface : statut, dates, montant, souscription/gestion dans les paramètres et avertissement global ; rafraîchissement temporel et au retour du paiement. Documentation des variables et configuration Stripe Tax avant activation réelle. Vérification TypeScript, suite complète, build et navigateur.
 
 ## Décisions d’implémentation
 
@@ -19,3 +19,7 @@ Les garages existants reçoivent 14 jours à la migration. Les espaces de démon
 ## Points de revue
 
 Expiration dans un onglet ouvert ; invitations et photos hors reducer ; événements Stripe dupliqués ou désordonnés ; double clic de paiement ; abandon de Checkout ; utilisateur non propriétaire ou autre garage ; réabonnement sans nouvel essai ; TVA incluse sans supplément caché.
+
+## Validation
+
+101 tests automatisés réussis, build Next.js et TypeScript réussis, Prettier vérifié sur les fichiers concernés. Navigateur desktop/mobile : essai, lecture seule, paiement indisponible sans configuration et actualisation sans socket. Revue indépendante : crédit Stripe et rafraîchissement sans socket corrigés et vérifiés. Aucun paiement réel ni parcours dans un sandbox Stripe externe ; ce contrôle reste à faire avant production.
