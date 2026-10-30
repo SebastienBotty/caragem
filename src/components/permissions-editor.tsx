@@ -124,7 +124,7 @@ export function RolePermissionsDialog({ close }: { close: () => void }) {
   );
 }
 
-function CustomRoleDialog({ role, close }: { role?: CustomRole; close: () => void }) {
+export function CustomRoleDialog({ role, close }: { role?: CustomRole; close: () => void }) {
   const { act } = useGarage();
   const [value, setValue] = useState<PermissionOverrides>(role?.permissions ?? {});
   return (

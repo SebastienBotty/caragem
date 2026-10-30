@@ -1,235 +1,150 @@
-'use client';
-import { useEffect, useRef, useState } from 'react';
+﻿'use client';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { z } from 'zod';
 import { AppShell } from './app-shell';
 import { GarageContext, type request as realRequest } from './provider';
-import { Button } from './ui';
-import { uid, type Action, type GarageState } from '@/lib/domain';
-import { photoUploadSchema } from '@/lib/vehicle-photos';
-import {
-  applyTrainingAction,
-  createTraining,
-  matchesTrainingStep,
-  type TrainingEvent,
-} from '@/lib/training';
-
-const invitationSchema = z.object({
-  email: z.email(),
-  role: z.enum(['mechanic', 'reception']),
-  customRoleId: z.string().optional(),
-});
+import { Button, Modal } from './ui';
+import { VehicleDrawer } from './vehicle-drawer';
+import { DocumentDetail } from './documents';
+import { createTrainingDemonstration } from '@/lib/training-demonstration';
+import { AssignRoleDialog, CustomRoleDialog, UserPermissionsDialog } from './permissions-editor';
 
 export function TrainingTour({ page, close }: { page: string; close: () => void }) {
-  const [exercise] = useState(() => createTraining(page));
-  const [state, setState] = useState(exercise.state);
-  const currentState = useRef(state);
+  const [tour] = useState(() => createTrainingDemonstration(page));
   const [index, setIndex] = useState(0);
-  const progress = useRef(0);
-  const photoImages = useRef(new Map<string, string>());
-  const [message, setMessage] = useState('');
+  const [ready, setReady] = useState(false);
   const root = useRef<HTMLDialogElement>(null);
   const [portal, setPortal] = useState<HTMLElement | null>(null);
-  const invitation = useRef<{
-    id: string;
-    email: string;
-    role: 'mechanic' | 'reception';
-    customRoleId?: string;
-    expires: number;
-  } | null>(null);
-  const step = exercise.steps[index];
-  function update(next: GarageState) {
-    currentState.current = next;
-    setState(next);
-  }
-  function record(event: TrainingEvent) {
-    const current = exercise.steps[progress.current];
-    if (current && matchesTrainingStep(current, event)) {
-      progress.current++;
-      setIndex(progress.current);
-      setMessage('');
-    }
-  }
-  const act = async (action: Action) => {
-    const next = applyTrainingAction(currentState.current, action);
-    update(next);
-    record(action);
-    return next;
+  const scene = tour.scenes[Math.min(index, tour.scenes.length - 1)];
+  const finished = index === tour.scenes.length;
+  const { state, step } = scene;
+  const unavailable = async (): Promise<never> => {
+    throw new Error('Cette visite est une démonstration en lecture seule.');
   };
-  const request: typeof realRequest = async <T,>(path: string, body?: unknown): Promise<T> => {
-    if (path.startsWith('vehicle-photos/')) {
-      const image = photoImages.current.get(path.slice('vehicle-photos/'.length));
-      if (!image) throw new Error('Photo fictive introuvable.');
-      return { image } as T;
-    }
+  const request: typeof realRequest = async <T,>(path: string): Promise<T> => {
     if (path === 'invitations')
-      return { invitations: invitation.current ? [invitation.current] : [] } as T;
-    if (path === 'invite') {
-      const input = invitationSchema.parse(body);
-      if (
-        input.customRoleId &&
-        !currentState.current.settings.customRoles?.some((r) => r.id === input.customRoleId)
-      )
-        throw new Error('Rôle fictif introuvable.');
-      invitation.current = { ...input, id: uid(), expires: Date.now() + 7 * 86400000 };
-      record({ type: 'trainingInvite' });
-      return { url: 'https://formation.invalid/invitation-fictive' } as T;
-    }
-    if (path === 'revoke-invitation') {
-      invitation.current = null;
-      return {} as T;
-    }
-    // No fallback to the real transport: all account and network operations stay blocked.
-    throw new Error('Cette opération n’est pas disponible dans l’entraînement.');
+      return { invitations: scene.invitation ? [scene.invitation] : [] } as T;
+    return unavailable();
   };
-  const api = async (path: string, body: unknown) => {
-    if (path === 'vehicle-photos' || path === 'vehicle-photos/delete') {
-      const next = structuredClone(currentState.current);
-      if (path === 'vehicle-photos') {
-        const input = photoUploadSchema.parse(body);
-        const vehicle = next.vehicles.find((vehicle) => vehicle.id === input.vehicleId);
-        if (!vehicle || vehicle.stage === 'returned' || (vehicle.photos?.length ?? 0) >= 30)
-          throw new Error('Ajout de photo indisponible.');
-        const photo = {
-          id: uid(),
-          category: input.category,
-          caption: input.caption,
-          finding: input.finding,
-          createdAt: new Date().toISOString(),
-          author: next.users[0].name,
-          bytes: Math.ceil(input.image.length * 0.75),
-        };
-        (vehicle.photos ??= []).push(photo);
-        photoImages.current.set(photo.id, input.image);
-      } else {
-        const { id } = z.object({ id: z.string() }).parse(body);
-        for (const vehicle of next.vehicles)
-          vehicle.photos = vehicle.photos?.filter((photo) => photo.id !== id);
-        photoImages.current.delete(id);
-      }
-      next.revision++;
-      update(next);
-      return;
+  function readOnly(event: SyntheticEvent) {
+    if (!(event.target as HTMLElement).closest('.training-coach')) {
+      event.preventDefault();
+      event.stopPropagation();
     }
-    if (path !== 'send-mail') throw new Error('Opération indisponible dans l’entraînement.');
-    const { id } = z.object({ id: z.string() }).parse(body);
-    const next = structuredClone(currentState.current);
-    const mail = next.mails.find((m) => m.id === id);
-    if (!mail || mail.status !== 'draft') throw new Error('Brouillon fictif introuvable.');
-    mail.status = 'sent';
-    mail.sentAt = new Date().toISOString();
-    mail.sentBy = next.users[0].name;
-    next.revision++;
-    update(next);
-    record({ type: 'trainingSend' });
-  };
-  function join() {
-    const pending = invitation.current;
-    if (!pending) return setMessage('Créez d’abord une invitation fictive.');
-    const next = structuredClone(currentState.current);
-    next.users.push({
-      id: uid(),
-      name: 'Nouveau collègue',
-      role:
-        next.settings.customRoles?.find((role) => role.id === pending.customRoleId)?.baseRole ??
-        pending.role,
-      customRoleId: pending.customRoleId,
-      color: '#8b78b7',
-    });
-    next.revision++;
-    invitation.current = null;
-    update(next);
-    record({ type: 'trainingJoin' });
   }
   useEffect(() => {
     const element = root.current;
     element?.showModal();
+    setReady(true);
     return () => element?.close();
   }, []);
   useEffect(() => {
-    let highlighted: HTMLElement | undefined;
-    let permissionRows: HTMLElement[] = [];
+    let highlighted: HTMLElement | null = null;
     const sync = () => {
       const container = root.current;
       if (!container) return;
-      const dialogs = Array.from(container.querySelectorAll<HTMLDialogElement>('dialog[open]'));
-      const top = dialogs.at(-1) ?? container;
+      const top =
+        Array.from(container.querySelectorAll<HTMLDialogElement>('dialog[open]')).at(-1) ??
+        container;
       setPortal((old) => (old === top ? old : top));
-      const editor = step?.permissions
-        ? top.querySelector(`[data-permission-editor="${step.type}"]`)
-        : null;
-      const rows = (step?.permissions ?? []).flatMap((permission) =>
-        Array.from(
-          editor?.querySelectorAll<HTMLElement>(`[data-permission="${permission}"]`) ?? [],
-        ),
-      );
-      for (const row of permissionRows)
-        if (!rows.includes(row)) row.classList.remove('training-permission-target');
-      for (const row of rows)
-        if (!row.classList.contains('training-permission-target'))
-          row.classList.add('training-permission-target');
-      permissionRows = rows;
-      const nextPermission = rows.find((row) => {
-        const input = row.querySelector<HTMLInputElement>('input[type="checkbox"]');
-        const select = row.querySelector<HTMLSelectElement>('select');
-        return input ? !input.checked : select?.value === 'inherit';
-      });
-      const target =
-        nextPermission ??
-        step?.target
-          .split(',')
-          .map((selector) => top.querySelector<HTMLElement>(selector.trim()))
-          .find((element) => {
-            if (!element) return false;
-            const rect = element.getBoundingClientRect();
-            return (
-              rect.width > 0 && rect.height > 0 && rect.right > 0 && rect.left < window.innerWidth
-            );
-          }) ??
-        (step?.target.includes('data-tour-nav')
-          ? top.querySelector<HTMLElement>('[aria-label="Ouvrir le menu"]')
-          : null) ??
-        top.querySelector<HTMLElement>('form') ??
-        undefined;
-      if (target !== highlighted) {
+      container
+        .querySelectorAll<
+          HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement
+        >('input, button, select, textarea')
+        .forEach((control) => {
+          if (!control.closest('.training-coach')) control.disabled = true;
+        });
+      const permission = step.permissions
+        ?.map((id) => top.querySelector<HTMLElement>(`[data-permission="${id}"]`))
+        .find(Boolean);
+      const target = finished
+        ? null
+        : (permission ??
+          step.target
+            .split(',')
+            .map((selector) => top.querySelector<HTMLElement>(selector.trim()))
+            .find((element) => element && element.getBoundingClientRect().width > 0) ??
+          top.querySelector<HTMLElement>(
+            '.drawer-content, .document-preview, [data-tour="content"]',
+          ));
+      if (highlighted !== target) {
         highlighted?.classList.remove('training-target');
         target?.classList.add('training-target');
         highlighted = target;
-        if (nextPermission) nextPermission.scrollIntoView({ block: 'center', behavior: 'instant' });
+        target?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
       }
     };
     sync();
     const observer = new MutationObserver(sync);
-    root.current?.addEventListener('change', sync, true);
     if (root.current)
       observer.observe(root.current, {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['open', 'class'],
+        attributeFilter: ['open'],
       });
     return () => {
       observer.disconnect();
-      root.current?.removeEventListener('change', sync, true);
       highlighted?.classList.remove('training-target');
-      permissionRows.forEach((row) => row.classList.remove('training-permission-target'));
     };
-  }, [step]);
+  }, [index, step, finished]);
+  useEffect(() => {
+    portal
+      ?.querySelector<HTMLButtonElement>('.training-coach button:not(:disabled)')
+      ?.focus({ preventScroll: true });
+  }, [portal, index]);
+  const coach = (
+    <aside className="training-coach" aria-label="Guide de la démonstration">
+      <span className="eyebrow">
+        VISITE GUIDÉE · {Math.min(index + 1, tour.scenes.length)}/{tour.scenes.length}
+      </span>
+      <h2 aria-live="polite">{finished ? 'Visite terminée' : step.title}</h2>
+      <p>
+        {finished
+          ? 'Vous avez découvert le parcours avec des données fictives. Votre garage est resté inchangé.'
+          : step.text}
+      </p>
+      <progress
+        max={tour.scenes.length}
+        value={index + (finished ? 0 : 1)}
+        aria-label="Progression de la visite"
+      />
+      <Button disabled={index === 0} onClick={() => setIndex(index - 1)}>
+        Précédent
+      </Button>
+      {!finished && (
+        <Button className="primary" onClick={() => setIndex(index + 1)}>
+          {index === tour.scenes.length - 1 ? 'Terminer la visite' : 'Suivant'}
+        </Button>
+      )}
+      <Button onClick={close}>{finished ? 'Revenir à mon garage' : 'Quitter la visite'}</Button>
+    </aside>
+  );
   return (
     <dialog
       ref={root}
       className="training-shell"
-      aria-label={`Entraînement : ${exercise.title}`}
-      onCancel={(event) => {
-        if (event.target === event.currentTarget) {
+      aria-label={`Visite guidée : ${tour.title}`}
+      onClickCapture={readOnly}
+      onSubmitCapture={readOnly}
+      onKeyDownCapture={(event) => {
+        if (event.key === 'Escape') {
           event.preventDefault();
           close();
-        }
+        } else if (
+          !(event.target as HTMLElement).closest('.training-coach') &&
+          !['Tab', 'Shift'].includes(event.key)
+        )
+          readOnly(event);
+      }}
+      onCancel={(event) => {
+        event.preventDefault();
+        close();
       }}
     >
       <div className="training-banner">
-        ENTRAÎNEMENT · Données fictives · Vous jouez un patron fictif · Rien n’est enregistré dans
-        votre garage
+        VISITE GUIDÉE · Regardez les étapes, aucune saisie nécessaire · Données fictives · Votre
+        garage reste inchangé
       </div>
       <GarageContext.Provider
         value={{
@@ -239,50 +154,58 @@ export function TrainingTour({ page, close }: { page: string; close: () => void 
           request,
           onboardingSeen: true,
           connected: false,
-          smtp: true,
+          smtp: false,
           account: null,
           garages: [],
           can: () => true,
-          act,
-          api,
-          notify: setMessage,
+          act: unavailable,
+          api: unavailable,
+          notify: () => {},
           refresh: async () => {},
         }}
       >
-        <AppShell initialPage={exercise.initialPage} />
-      </GarageContext.Provider>
-      {portal &&
-        createPortal(
-          <aside
-            className="training-coach"
-            aria-label="Guide de l’entraînement"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <span className="eyebrow">
-              ENTRAÎNEMENT · {Math.min(index + 1, exercise.steps.length)}/{exercise.steps.length}
-            </span>
-            <h2 aria-live="polite">{step?.title ?? 'Exercice terminé !'}</h2>
-            <p>
-              {step?.text ??
-                'Vous avez réalisé le scénario dans les vrais écrans avec des données fictives. En fermant, vous retrouverez votre garage tel que vous l’avez laissé.'}
-            </p>
-            <progress
-              max={exercise.steps.length}
-              value={index}
-              aria-label="Progression de l’exercice"
-            />
-            {message && <p role="status">{message}</p>}
-            {step?.type === 'trainingJoin' && (
-              <Button className="primary" onClick={join}>
-                Simuler l’acceptation
-              </Button>
-            )}
-            <Button onClick={close}>
-              {step ? 'Quitter l’entraînement' : 'Revenir à mon garage'}
-            </Button>
-          </aside>,
-          portal,
+        {ready && <AppShell key={index} initialPage={scene.page} />}
+        {ready && scene.vehicleId && (
+          <VehicleDrawer
+            key={`vehicle-${index}`}
+            id={scene.vehicleId}
+            initialTab={scene.tab}
+            close={() => {}}
+          />
         )}
+        {ready && scene.documentId && (
+          <DocumentDetail
+            key={`document-${index}`}
+            document={state.documents.find((d) => d.id === scene.documentId)!}
+            close={() => {}}
+          />
+        )}
+        {ready && step.type === 'customRole' && (
+          <CustomRoleDialog
+            key={index}
+            role={state.settings.customRoles!.at(-1)!}
+            close={() => {}}
+          />
+        )}
+        {ready && step.type === 'assignRole' && (
+          <AssignRoleDialog key={index} member={state.users.at(-1)!} close={() => {}} />
+        )}
+        {ready && step.type === 'userPermissions' && (
+          <UserPermissionsDialog key={index} member={state.users.at(-1)!} close={() => {}} />
+        )}
+        {ready && scene.page === 'messages' && (
+          <Modal
+            key={index}
+            title={state.mails[0].subject}
+            subtitle={state.mails[0].status === 'sent' ? 'Envoi simulé' : 'Brouillon fictif'}
+            close={() => {}}
+          >
+            <p>À : {state.mails[0].to}</p>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{state.mails[0].body}</p>
+          </Modal>
+        )}
+      </GarageContext.Provider>
+      {portal ? createPortal(coach, portal) : coach}
     </dialog>
   );
 }

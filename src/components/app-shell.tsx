@@ -353,20 +353,23 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
               {state.demo ? 'Données de démonstration' : 'Données enregistrées dans votre garage'}
             </span>
           </footer>
-          {!training && (
-            <Button
-              className="page-tour-launch"
-              data-tour="page-help"
-              aria-label={`Visite guidée de ${title}`}
-              onClick={() => {
-                setMenu(false);
-                setProfile(false);
-                setTrainingPage(page);
-              }}
-            >
-              <Compass size={17} /> Visite guidée
-            </Button>
-          )}
+          {!training &&
+            ['garage', 'customers', 'estimates', 'inventory', 'messages', 'team'].includes(
+              page,
+            ) && (
+              <Button
+                className="page-tour-launch"
+                data-tour="page-help"
+                aria-label={`Visite guidée de ${title}`}
+                onClick={() => {
+                  setMenu(false);
+                  setProfile(false);
+                  setTrainingPage(page);
+                }}
+              >
+                <Compass size={17} /> Visite guidée
+              </Button>
+            )}
         </main>
       </div>
       {switchGarage && <GarageSwitcher close={() => setSwitchGarage(false)} />}

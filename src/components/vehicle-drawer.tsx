@@ -26,12 +26,20 @@ import { VehicleBlocker } from './vehicle-blocker';
 import { VehiclePhotos } from './vehicle-photos';
 import { VehicleTimeSummary } from './vehicle-time-summary';
 
-export function VehicleDrawer({ id, close }: { id: string; close: () => void }) {
+export function VehicleDrawer({
+  id,
+  close,
+  initialTab = 'work',
+}: {
+  id: string;
+  close: () => void;
+  initialTab?: string;
+}) {
   const { state, can, act, notify } = useGarage();
   const v = state.vehicles.find((v) => v.id === id)!;
   const c = state.customers.find((c) => c.id === v.customerId)!;
   const ref = useRef<HTMLDialogElement>(null);
-  const [tab, setTab] = useState('work');
+  const [tab, setTab] = useState(initialTab);
   const [dialog, setDialog] = useState('');
   const [docId, setDocId] = useState('');
   const [stage, setStage] = useState<Stage>(v.stage);
