@@ -29,7 +29,7 @@ Le garage miniature sert de point d’entrée aux dossiers. Les vues de gestion 
 | **Documents**                   | Devis, accord client enregistré, conversion en facture, remises, suivi des paiements et génération de PDF. Mails préparés puis validés manuellement.        |
 | **Équipe et accès**             | Comptes multi-garages, invitations, rôles personnalisés et exceptions de permissions individuelles.                                                         |
 | **Compte personnel**            | Connexion Google ou mot de passe, double authentification, gestion des sessions, changement d’adresse vérifié, notifications et thème clair/sombre/système. |
-| **Abonnements**                 | Essai de 14 jours puis 25 € TTC par mois et par garage via Stripe. À expiration, lecture seule et conservation des données.                                 |
+| **Abonnements**                 | 14 jours offerts sur le premier garage uniquement. 25 € TTC/mois par garage ; abonnement immédiat pour les garages supplémentaires.                         |
 | **Prise en main et transferts** | Visites guidées avec scénarios fictifs isolés ; import/export CSV et Excel avec aperçu, validation et confirmation.                                         |
 
 ## Architecture et choix techniques

@@ -254,6 +254,11 @@ test(
         local.garageId,
       );
       const owner = (await store.session(sessionCookie(linked)))!;
+      // The additional garage must be paid before its owner can invite colleagues.
+      await store.db.query('UPDATE garage_billing SET paid_until=$2 WHERE garage_id=$1', [
+        secondGarage.garageId,
+        Date.now() + 86400000,
+      ]);
       const invite = await store.invite(owner, 'invited@gmail.com', 'mechanic');
       const accepted = await callback(await start({ invitation: invite }), {
         sub: 'invited-google',

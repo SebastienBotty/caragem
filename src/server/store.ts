@@ -218,6 +218,8 @@ export class Store {
     state.users[0].name = account.name;
     state.users[0].avatar = account.avatar;
     await this.save(state, sql);
+    if (count > 0)
+      await sql.query('UPDATE garage_billing SET trial_ends_at=0 WHERE garage_id=$1', [state.id]);
     await sql.query('INSERT INTO memberships(email,garage_id,user_id,role) VALUES($1,$2,$3,$4)', [
       email,
       state.id,

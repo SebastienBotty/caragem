@@ -99,7 +99,9 @@ export function GarageSwitcher({ close }: { close: () => void }) {
             />
           </Field>
           <p className="muted">
-            Vous serez responsable de ce garage. Aucun paiement n’est demandé à cette étape.
+            Vous serez responsable de ce garage. Les 14 jours d’essai sont offerts uniquement pour
+            votre premier garage. Chaque garage supplémentaire nécessite son propre abonnement de 25
+            € TTC/mois et reste en lecture seule jusqu’à sa souscription.
           </p>
         </Form>
       )}

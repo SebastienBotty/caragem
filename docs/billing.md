@@ -1,6 +1,8 @@
 # Abonnements par garage
 
-Chaque garage dispose de 14 jours gratuits à sa création, sans carte, puis coûte **25 € TTC / mois pour toute son équipe**. Chaque garage a son abonnement et son compte de facturation Stripe, même si un propriétaire en possède plusieurs. Les garages présents avant cette migration reçoivent 14 jours au premier démarrage de cette version. La démonstration conserve son fonctionnement séparé.
+Chaque personne bénéficie de **14 jours gratuits, sans carte, uniquement pour le premier garage dont elle devient créatrice et propriétaire**. Chaque garage supplémentaire nécessite immédiatement son propre abonnement de **25 € TTC / mois pour toute son équipe**, sans nouvel essai. Il est créé en lecture seule et devient utilisable en modification après paiement confirmé. Chaque garage conserve son abonnement et son compte de facturation Stripe distincts.
+
+La règle s’applique aux nouvelles créations : les essais déjà accordés et les périodes déjà payées sont conservés. Rejoindre un garage sur invitation ou ouvrir la démonstration ne consomme pas l’essai du premier garage personnel. Les créations simultanées sont sérialisées par compte pour ne pas accorder deux essais. L’expiration du premier essai ne permet pas d’en obtenir un autre en créant un nouveau garage. La démonstration conserve son fonctionnement séparé.
 
 L’expiration n’efface aucune donnée. Consultation, téléchargements et export restent possibles selon les permissions existantes. Les écritures métier sont contrôlées côté serveur dans la transaction : tâches, clients, véhicules, photos, stock, documents, mails, import et invitations. Déconnexion, changement de garage, sécurité du compte et facturation restent accessibles. Un mail dont l’envoi a déjà commencé peut enregistrer son résultat après l’expiration.
 

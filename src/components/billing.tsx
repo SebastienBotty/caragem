@@ -63,7 +63,9 @@ export function BillingCard() {
             ? `Essai jusqu’au ${date(state.billing.trialEndsAt)}. Aucun prélèvement sans souscription.`
             : access === 'paid'
               ? `${state.billing.cancelAtPeriodEnd ? 'Résiliation prévue. Accès jusqu’au' : 'Période payée jusqu’au'} ${date(state.billing.paidUntil)}.`
-              : 'Votre essai ou votre période payée est terminé. Vos données sont conservées et restent consultables.'}
+              : state.billing.trialEndsAt === 0 && state.billing.paidUntil === 0
+                ? 'Ce garage nécessite son propre abonnement de 25 € TTC/mois, sans nouvel essai gratuit. Vos données restent consultables.'
+                : 'Votre essai ou votre période payée est terminé. Vos données sont conservées et restent consultables.'}
         </p>
       )}
       {['past_due', 'unpaid', 'incomplete'].includes(state.billing?.status ?? '') && (

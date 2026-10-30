@@ -19,6 +19,6 @@ export function billingAccess(billing: Billing | undefined, now = Date.now()) {
 export function requireWritable(state: { demo: boolean; billing?: Billing }) {
   if (!state.demo && billingAccess(state.billing) === 'readonly')
     throw new UserError(
-      'Abonnement expiré : ce garage est en lecture seule. Vos données sont conservées.',
+      'Un abonnement actif est nécessaire : ce garage est en lecture seule. Vos données sont conservées.',
     );
 }

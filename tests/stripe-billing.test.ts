@@ -301,6 +301,22 @@ test('Stripe checkout, signed lifecycle events and reactivation are isolated per
       (await fetch(`${origin}/api/session`, { headers: { Cookie: otherCookie } })).status,
       200,
     );
+    const additional = await store.createGarage(ownerSession, 'Garage supplémentaire payant');
+    const additionalState = await store.get(additional.garageId);
+    assert.equal(billingAccess(additionalState.billing), 'readonly');
+    const additionalCookie = `caragem_session=${await store.newSession(additional.garageId, additional.userId)}`;
+    assert.equal((await post('billing/checkout', additionalCookie)).status, 200);
+    const additionalCheckout = checkoutInputs.at(-1)!;
+    assert.equal(additionalCheckout.get('line_items[0][price]'), 'price_caragem');
+    assert.equal(additionalCheckout.get('line_items[0][quantity]'), '1');
+    assert.equal(additionalCheckout.has('subscription_data[trial_end]'), false);
+    assert.equal(additionalCheckout.has('subscription_data[billing_cycle_anchor]'), false);
+    assert.equal(additionalCheckout.has('subscription_data[proration_behavior]'), false);
+    assert.equal(
+      billingAccess((await store.get(additional.garageId)).billing),
+      'readonly',
+      'opening Checkout does not grant access without payment',
+    );
   } finally {
     workerSocket?.disconnect();
     if (previous === undefined) delete process.env.APP_ORIGIN;
