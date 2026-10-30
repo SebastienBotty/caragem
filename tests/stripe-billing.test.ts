@@ -21,7 +21,9 @@ test('Stripe checkout, signed lifecycle events and reactivation are isolated per
   const checkoutInputs: URLSearchParams[] = [];
   let validPrice = true;
   let taxRegistered = true;
+  let invoiceServiceDown = false;
   let customers = 0;
+  const invoiceCustomers: string[] = [];
   const stripeServer = createServer(async (req, res) => {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
@@ -42,7 +44,36 @@ test('Stripe checkout, signed lifecycle events and reactivation are isolated per
         object: 'list',
         data: taxRegistered ? [{ id: 'taxreg_test', status: 'active' }] : [],
       };
-    else if (path === '/v1/customers') result = { id: `cus_${++customers}` };
+    else if (path === '/v1/invoices') {
+      if (invoiceServiceDown) {
+        res.statusCode = 503;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: { message: 'Unavailable' } }));
+        return;
+      }
+      const customer = new URL(req.url!, 'http://localhost').searchParams.get('customer')!;
+      invoiceCustomers.push(customer);
+      result = {
+        data: [
+          {
+            id: `in_${customer}`,
+            customer,
+            number: 'FAC-TEST',
+            created: 1700000000,
+            status: 'paid',
+            total: 2500,
+            amount_paid: 2500,
+            amount_remaining: 0,
+            currency: 'eur',
+            due_date: null,
+            status_transitions: { paid_at: 1700000010 },
+            invoice_pdf: `https://pay.stripe.com/invoice/${customer}/pdf`,
+            hosted_invoice_url: `https://invoice.stripe.com/i/${customer}`,
+          },
+        ],
+        has_more: false,
+      };
+    } else if (path === '/v1/customers') result = { id: `cus_${++customers}` };
     else if (path === '/v1/checkout/sessions' && req.method === 'POST') {
       checkoutInputs.push(form);
       const id = `cs_${checkouts.size + 1}`;
@@ -317,6 +348,84 @@ test('Stripe checkout, signed lifecycle events and reactivation are isolated per
       'readonly',
       'opening Checkout does not grant access without payment',
     );
+    const getBilling = (target: string, withCookie = cookie) =>
+      fetch(`${origin}/api/${target}`, { headers: { Cookie: withCookie } });
+    const list = await (await getBilling('billing/garages')).json();
+    assert.deepEqual(
+      new Set(list.garages.map((g: { id: string }) => g.id)),
+      new Set([owner.garageId, additional.garageId]),
+    );
+    const employeeList = await (await getBilling('billing/garages', workerCookie)).json();
+    assert.deepEqual(employeeList.garages, []);
+    const invoicesBeforeDeniedRequests = invoiceCustomers.length;
+    assert.equal((await getBilling(`billing?garageId=${other.garageId}`)).status, 403);
+    assert.equal(
+      (await getBilling(`billing?garageId=${owner.garageId}`, workerCookie)).status,
+      403,
+    );
+    assert.equal(
+      (await post('billing/checkout', cookie, { garageId: other.garageId })).status,
+      403,
+    );
+    assert.equal((await post('billing/portal', cookie, { garageId: other.garageId })).status, 403);
+    assert.equal(invoiceCustomers.length, invoicesBeforeDeniedRequests);
+    const detailsResponse = await getBilling(`billing?garageId=${additional.garageId}`);
+    assert.equal(detailsResponse.status, 200);
+    const details = await detailsResponse.json();
+    assert.equal(detailsResponse.headers.get('Cache-Control'), 'no-store');
+    assert.equal(details.detailsError, undefined);
+    const [{ stripe_customer: additionalCustomer }] = (
+      await store.db.query('SELECT stripe_customer FROM garage_billing WHERE garage_id=$1', [
+        additional.garageId,
+      ])
+    ).rows;
+    assert.equal(details.invoices[0].id, `in_${additionalCustomer}`);
+    assert.equal(details.lastPayment.paidAt, 1700000010000);
+    const targetPortal = await post('billing/portal', cookie, {
+      garageId: additional.garageId,
+      customer: 'cus_foreign_injected',
+    });
+    assert.equal(targetPortal.status, 200);
+    assert.equal(
+      (await targetPortal.json()).url,
+      `https://billing.stripe.com/p/session/${additionalCustomer}`,
+    );
+    assert.ok(
+      invoiceCustomers.slice(invoicesBeforeDeniedRequests).every((id) => id === additionalCustomer),
+    );
+    assert.equal(
+      (await post('billing/checkout', cookie, { garageId: additional.garageId })).status,
+      200,
+    );
+    assert.equal(
+      (await store.session(cookie))!.garageId,
+      owner.garageId,
+      'managing another garage never switches the active garage',
+    );
+    assert.equal(
+      additionalCheckout.get('success_url'),
+      `${origin}/?billing=success&billingGarage=${additional.garageId}`,
+    );
+    const workerOwned = await store.createGarage(
+      { ...worker, email: 'employee@example.com', expires: Date.now() + 100000, tokenHash: 'test' },
+      'Garage personnel du collaborateur',
+    );
+    assert.equal(
+      (await getBilling(`billing?garageId=${workerOwned.garageId}`, workerCookie)).status,
+      200,
+      'ownership of the target, not role in the active garage, authorizes billing',
+    );
+    const demo = await store.createDemo(ownerSession);
+    const demoCookie = `caragem_session=${await store.newSession(demo.garageId, demo.userId)}`;
+    const fromDemo = await (await getBilling('billing/garages', demoCookie)).json();
+    assert.equal(fromDemo.garages.length, 2);
+    assert.ok(fromDemo.garages.every((g: { id: string }) => g.id !== demo.garageId));
+    invoiceServiceDown = true;
+    const unavailable = await (await getBilling(`billing?garageId=${additional.garageId}`)).json();
+    assert.match(unavailable.detailsError, /momentanément indisponible/);
+    assert.equal(unavailable.hasCustomer, true);
+    assert.equal(unavailable.configured, true);
+    assert.deepEqual(unavailable.invoices, []);
   } finally {
     workerSocket?.disconnect();
     if (previous === undefined) delete process.env.APP_ORIGIN;

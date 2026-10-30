@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { z } from 'zod';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Server } from 'socket.io';
 import type { Store, Session } from './store.ts';
@@ -7,6 +8,7 @@ import { appOrigin, type Reply } from './http.ts';
 import { UserError } from '../lib/errors.ts';
 import { monthlyPrice } from '../lib/billing.ts';
 import { broadcastGarage } from './realtime.ts';
+import { billingDetails } from './billing-details.ts';
 
 export type BillingConfig = {
   stripe?: Stripe;
@@ -68,10 +70,10 @@ export function createBillingApi(store: Store, io: Server, configuration = billi
       [row.garage_id],
     );
   };
-  const portal = async (customer: string) => {
+  const portal = async (customer: string, garageId: string) => {
     const result = await stripe!.billingPortal.sessions.create({
       customer,
-      return_url: `${appOrigin()}/?billing=return`,
+      return_url: `${appOrigin()}/?billing=return&billingGarage=${encodeURIComponent(garageId)}`,
     });
     return result.url;
   };
@@ -144,33 +146,108 @@ export function createBillingApi(store: Store, io: Server, configuration = billi
       }
       send(200, { received: true });
     },
-    async handle(req: IncomingMessage, path: string, session: Session, send: Reply) {
+    async handle(
+      req: IncomingMessage,
+      path: string,
+      session: Session,
+      send: Reply,
+      body?: unknown,
+    ) {
       if (
         ![
           '/api/billing',
+          '/api/billing/garages',
           '/api/billing/checkout',
           '/api/billing/portal',
           '/api/billing/sync',
         ].includes(path)
       )
         return false;
-      const state = await store.get(session.garageId);
+      if (!session.email) {
+        send(403, { error: 'Un compte personnel est nécessaire pour gérer les abonnements.' });
+        return true;
+      }
+      if (['/api/billing', '/api/billing/garages'].includes(path) && req.method !== 'GET') {
+        send(405, { error: 'Méthode non autorisée.' });
+        return true;
+      }
+      if (path === '/api/billing/garages' && req.method === 'GET') {
+        const owned = (await store.garages(session.email)).filter(
+          (garage) => garage.role === 'owner',
+        );
+        const states = await Promise.all(
+          owned.map(async (garage) => ({ garage, state: await store.get(garage.id) })),
+        );
+        send(200, {
+          garages: states
+            .filter(
+              ({ garage, state }) =>
+                !state.demo &&
+                state.users.some((u) => u.id === garage.userId && u.role === 'owner'),
+            )
+            .map(({ state }) => ({
+              id: state.id,
+              name: state.settings.name,
+              billing: state.billing,
+            })),
+        });
+        return true;
+      }
+      const input = z.object({ garageId: z.string().min(1).max(100).optional() }).parse(
+        req.method === 'GET'
+          ? {
+              garageId:
+                new URL(req.url ?? path, 'http://localhost').searchParams.get('garageId') ??
+                undefined,
+            }
+          : (body ?? {}),
+      );
+      let member;
+      try {
+        member = await store.membership(session.email, input.garageId ?? session.garageId);
+      } catch (error) {
+        if (!(error instanceof UserError)) throw error;
+        send(403, { error: 'Seul le propriétaire de ce garage peut gérer son abonnement.' });
+        return true;
+      }
+      const state = await store.get(member.garageId);
       if (
         state.demo ||
         !session.email ||
-        state.users.find((u) => u.id === session.userId)?.role !== 'owner'
+        state.users.find((u) => u.id === member.userId)?.role !== 'owner'
       ) {
         send(403, { error: 'Seul le propriétaire de ce garage peut gérer son abonnement.' });
         return true;
       }
       if (path === '/api/billing' && req.method === 'GET') {
         const row = await rowFor(store.db, state.id);
+        let details = {
+          subscription: null,
+          invoices: [],
+          hasMoreInvoices: false,
+          lastPayment: null,
+        } as Awaited<ReturnType<typeof billingDetails>> & { detailsError?: string };
+        if (stripe && row.stripe_customer) {
+          try {
+            details = await billingDetails(
+              stripe,
+              state.id,
+              row.stripe_customer,
+              row.stripe_subscription,
+            );
+          } catch (error) {
+            if (error instanceof UserError) throw error;
+            details.detailsError =
+              'L’historique Stripe est momentanément indisponible. Réessayez ou ouvrez le portail de facturation.';
+          }
+        }
         send(200, {
           billing: state.billing,
           configured,
           hasCustomer: Boolean(row.stripe_customer),
           hasSubscription: Boolean(row.stripe_subscription),
           monthlyPrice,
+          ...details,
         });
         return true;
       }
@@ -186,7 +263,7 @@ export function createBillingApi(store: Store, io: Server, configuration = billi
         if (path === '/api/billing/portal') {
           if (!row.stripe_customer)
             throw new UserError('Aucun compte de facturation pour ce garage.');
-          return portal(row.stripe_customer);
+          return portal(row.stripe_customer, state.id);
         }
         let sub: Stripe.Subscription | undefined;
         if (row.checkout_id) {
@@ -200,7 +277,7 @@ export function createBillingApi(store: Store, io: Server, configuration = billi
           await sync(sql, row, sub);
         }
         if (path === '/api/billing/sync') return undefined;
-        if (sub && !terminal(sub.status)) return portal(row.stripe_customer!);
+        if (sub && !terminal(sub.status)) return portal(row.stripe_customer!, state.id);
         if (!taxEnabled)
           throw new UserError(
             'La configuration de TVA Stripe doit être terminée avant de souscrire.',
@@ -228,7 +305,7 @@ export function createBillingApi(store: Store, io: Server, configuration = billi
           if (checkout.status === 'complete' && completedSub) {
             const current = await subscription(completedSub);
             await sync(sql, row, current);
-            if (!terminal(current.status)) return portal(row.stripe_customer!);
+            if (!terminal(current.status)) return portal(row.stripe_customer!, state.id);
           }
         }
         if (!row.stripe_customer) {
@@ -267,8 +344,8 @@ export function createBillingApi(store: Store, io: Server, configuration = billi
                     }
                   : {}),
             },
-            success_url: `${appOrigin()}/?billing=success`,
-            cancel_url: `${appOrigin()}/?billing=cancel`,
+            success_url: `${appOrigin()}/?billing=success&billingGarage=${encodeURIComponent(state.id)}`,
+            cancel_url: `${appOrigin()}/?billing=cancel&billingGarage=${encodeURIComponent(state.id)}`,
           },
           { idempotencyKey: `caragem-checkout-${state.id}-${attempt}` },
         );

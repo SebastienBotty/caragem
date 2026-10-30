@@ -8,7 +8,6 @@ import { Configure } from '../forms';
 
 import { RolePermissionsDialog } from '../permissions-editor';
 import { CsvTransfer } from '../csv-transfer';
-import { BillingCard } from '../billing';
 
 export function SettingsScreen() {
   const { state, user, can, training } = useGarage();
@@ -25,7 +24,6 @@ export function SettingsScreen() {
         </div>
       </div>
       <div className="settings-grid">
-        {user.role === 'owner' && !state.demo && !training && <BillingCard />}
         {user.role === 'owner' && !training && (
           <section className="data-panel settings-card">
             <h3>Importer / exporter les données</h3>

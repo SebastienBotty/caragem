@@ -6,6 +6,7 @@ import { AccountSecurityPanel } from './account-security';
 import { AccountPreferencesPanel } from './account-preferences';
 import { Badge, Field, Form, value } from './ui';
 import { GoogleSignIn } from './google-sign-in';
+import { AccountBilling } from './billing';
 import './account.css';
 
 export function AccountScreen() {
@@ -32,6 +33,7 @@ export function AccountScreen() {
           </p>
         </div>
       </div>
+      <AccountBilling />
       <div className="settings-grid account-grid">
         <AccountProfilePanel />
         <AccountPreferencesPanel />

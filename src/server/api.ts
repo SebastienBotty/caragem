@@ -33,6 +33,7 @@ const knownRoutes = new Set([
   '/api/auth/2fa/status',
   '/api/auth/2fa/verify',
   '/api/billing',
+  '/api/billing/garages',
   '/api/billing/checkout',
   '/api/billing/portal',
   '/api/billing/sync',
@@ -165,7 +166,7 @@ export function createApi(
       const userId = session.userId;
       const actor = s.users.find((u) => u.id === userId);
       if (!actor) throw new UserError('Session invalide.');
-      if (await billing.handle(req, path, session, send)) return true;
+      if (await billing.handle(req, path, session, send, inputBody)) return true;
       if (await vehiclePhotoApi(store, io, req.method, path, inputBody, session, res)) return true;
       if (await dataTransferApi(store, io, req, res, path, inputBody, session, s, send))
         return true;

@@ -43,3 +43,53 @@
 .billing-card p {
   line-height: 1.6;
 }
+.account-billing {
+  margin-bottom: 28px;
+}
+.account-billing > p {
+  margin: 10px 0 18px;
+  color: var(--muted);
+}
+.billing-garages {
+  display: grid;
+  gap: 18px;
+}
+.billing-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.billing-dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.billing-dates dt {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.billing-dates dd {
+  margin: 0;
+  font-size: 14px;
+}
+.billing-history {
+  margin-top: 20px;
+}
+.billing-history summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.billing-history .table-scroll {
+  max-height: 360px;
+  overflow: auto;
+}
+.billing-history a {
+  color: var(--blue);
+  text-decoration: underline;
+  white-space: nowrap;
+}

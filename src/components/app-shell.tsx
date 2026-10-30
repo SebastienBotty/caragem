@@ -44,6 +44,7 @@ import { roleLabel } from '@/lib/permissions';
 import { OnboardingTour } from './onboarding-tour';
 import { AccountScreen } from './account-screen';
 import { AccountNotifications } from './account-notifications';
+import { ThemeSwitch } from './theme-switch';
 import { BillingNotice } from './billing';
 const pagePermissions: Record<string, Permission> = {
   garage: 'garage.view',
@@ -236,6 +237,7 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
             <strong>{title}</strong>
           </div>
           <div className="topbar-actions">
+            <ThemeSwitch />
             <span className={`live-status ${connected ? '' : 'muted'}`}>
               <i className={connected ? '' : 'offline'} />
               {connected ? 'En direct' : 'Hors connexion'}
@@ -314,7 +316,7 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
               </div>
               <div className="garage-heading-title">
                 <h1>{page === 'garage' ? 'Votre garage, en un coup d’œil.' : title}</h1>
-                <BillingNotice visible={page === 'garage'} />
+                <BillingNotice visible={page === 'garage'} manage={() => navigate('account')} />
               </div>
               {page === 'garage' && (
                 <p>Chaque voiture à sa place. Toute l’équipe dans le même élan.</p>
