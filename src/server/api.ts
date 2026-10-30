@@ -16,12 +16,15 @@ import { dataTransferApi } from './data-transfer-api.ts';
 import { vehiclePhotoApi } from './vehicle-photo-api.ts';
 import { createBillingApi, type BillingConfig } from './billing-api.ts';
 import { accountProfileApi } from './account-profile-api.ts';
+import { accountPreferencesApi } from './account-preferences-api.ts';
 import { accountSecurityApi } from './account-security-api.ts';
 const knownRoutes = new Set([
   '/api/session',
   '/api/account/profile',
   '/api/account/email/start',
   '/api/account/email/confirm',
+  '/api/account/preferences',
+  '/api/account/notifications',
   '/api/account/security',
   '/api/account/security/sessions/revoke',
   '/api/account/security/2fa/setup',
@@ -151,6 +154,8 @@ export function createApi(
       if (await accountSecurityApi(store, io, req, res, path, inputBody, session, send))
         return true;
       if (await accountProfileApi(store, io, req, res, path, inputBody, session, send)) return true;
+      if (await accountPreferencesApi(store, io, req, res, path, inputBody, session, send))
+        return true;
       if (await accountApi(store, io, req, res, path, inputBody, session, send)) return true;
       if (!session) {
         send(401, { error: 'Connectez-vous pour continuer.' });
