@@ -3,7 +3,7 @@ import { Store } from '../src/server/store.ts';
 import { importLegacyDatabase, readLegacyDatabase } from '../src/server/import-sqlite.ts';
 if (existsSync('.env')) process.loadEnvFile('.env');
 const path =
-  process.argv.find((arg) => arg.startsWith('--source='))?.slice(9) ?? 'data/carm.sqlite';
+  process.argv.find((arg) => arg.startsWith('--source='))?.slice(9) ?? 'data/legacy.sqlite';
 const legacy = readLegacyDatabase(path);
 console.log({
   garages: legacy.garages.length,

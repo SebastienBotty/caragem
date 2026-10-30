@@ -118,7 +118,7 @@ export function CsvTransfer({ close }: { close: () => void }) {
     <Modal
       wide
       title="Importer / exporter les données"
-      subtitle="Transférez vos données entre CaRM et vos autres outils."
+      subtitle="Transférez vos données entre Caragem et vos autres outils."
       close={close}
     >
       <div className="form">
@@ -271,7 +271,7 @@ export function CsvTransfer({ close }: { close: () => void }) {
           <>
             <p>
               {filename} · {parsed.rows.length} ligne(s). Associez les colonnes de votre fichier aux
-              champs CaRM.
+              champs Caragem.
             </p>
             <div className="form-grid">
               {dataset.columns.map(([key, label, required]) => (

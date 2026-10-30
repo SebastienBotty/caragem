@@ -53,7 +53,7 @@ test('account sessions and MFA enforce account isolation, first-factor reauthent
     });
   const get = (path: string, cookie = '') =>
     fetch(`${base}/api/${path}`, { headers: { Cookie: cookie } });
-  const cookieOf = (res: Response, name = 'carm_session') =>
+  const cookieOf = (res: Response, name = 'caragem_session') =>
     res.headers
       .getSetCookie()
       .find((c) => c.startsWith(name + '='))
@@ -65,15 +65,15 @@ test('account sessions and MFA enforce account isolation, first-factor reauthent
       name: 'Security User',
       garage: 'Security garage',
     });
-    const cookie = `carm_session=${await store.newSession(target.garageId, target.userId, 'Initial Chrome', Date.now())}`;
-    const secondCookie = `carm_session=${await store.newSession(target.garageId, target.userId, 'Old phone')}`;
+    const cookie = `caragem_session=${await store.newSession(target.garageId, target.userId, 'Initial Chrome', Date.now())}`;
+    const secondCookie = `caragem_session=${await store.newSession(target.garageId, target.userId, 'Old phone')}`;
     const other = await store.register({
       email: 'foreign@example.com',
       hash: 'fake',
       name: 'Other User',
       garage: 'Other garage',
     });
-    const foreignCookie = `carm_session=${await store.newSession(other.garageId, other.userId)}`;
+    const foreignCookie = `caragem_session=${await store.newSession(other.garageId, other.userId)}`;
     const foreignInfo = await (await get('account/security', foreignCookie)).json();
     let info = await (await get('account/security', cookie)).json();
     assert.equal(info.sessions.length, 2);
@@ -132,7 +132,7 @@ test('account sessions and MFA enforce account isolation, first-factor reauthent
     assert.equal(JSON.stringify(security).includes(recoveryCodes[0]), false);
     assert.equal(JSON.stringify(security).includes(setupAgain.secret), false);
     assert.equal((await store.account('security@example.com'))!.twoFactorEnabled, true);
-    const racedCookie = `carm_session=${await store.newSession(target.garageId, target.userId, 'Concurrent first-factor login', Date.now())}`;
+    const racedCookie = `caragem_session=${await store.newSession(target.garageId, target.userId, 'Concurrent first-factor login', Date.now())}`;
     assert.equal(
       await store.session(racedCookie),
       undefined,
@@ -143,7 +143,7 @@ test('account sessions and MFA enforce account isolation, first-factor reauthent
       assert.equal(result.status, 200, await result.clone().text());
       assert.equal((await result.json()).twoFactorRequired, true);
       assert.equal(cookieOf(result), '');
-      const challenge = cookieOf(result, 'carm_2fa');
+      const challenge = cookieOf(result, 'caragem_2fa');
       assert.ok(challenge);
       return challenge;
     };
@@ -205,7 +205,7 @@ test('account sessions and MFA enforce account isolation, first-factor reauthent
     // A Google-only session needs a first-factor timestamp; a new session id does not prove authentication.
     await store.db.query('UPDATE accounts SET hash=NULL WHERE email=$1', ['foreign@example.com']);
     assert.equal((await post('account/security/2fa/setup', {}, foreignCookie)).status, 400);
-    const authenticatedForeign = `carm_session=${await store.newSession(other.garageId, other.userId, 'Chrome', Date.now())}`;
+    const authenticatedForeign = `caragem_session=${await store.newSession(other.garageId, other.userId, 'Chrome', Date.now())}`;
     assert.equal((await post('account/security/2fa/setup', {}, authenticatedForeign)).status, 200);
     // Valid TOTP can be consumed once per time step after an independently established login.
     await store.db.query('UPDATE account_security SET last_step=-1 WHERE email=$1', [
@@ -269,7 +269,7 @@ test('account sessions and MFA enforce account isolation, first-factor reauthent
     const accepted = await post(
       'auth/2fa/verify',
       { code: 'af'.repeat(16) },
-      cookieOf(invitedLogin, 'carm_2fa'),
+      cookieOf(invitedLogin, 'caragem_2fa'),
     );
     assert.equal(accepted.status, 200, await accepted.clone().text());
     assert.equal((await store.session(cookieOf(accepted)))!.garageId, other.garageId);

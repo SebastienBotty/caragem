@@ -33,8 +33,8 @@ async function fixture(t: TestContext) {
     else process.env.APP_ORIGIN = previousOrigin;
   });
   const state = await store.create(true);
-  const owner = `carm_session=${await store.newSession(state.id, state.users[0].id)}`;
-  const mechanic = `carm_session=${await store.newSession(state.id, state.users[1].id)}`;
+  const owner = `caragem_session=${await store.newSession(state.id, state.users[0].id)}`;
+  const mechanic = `caragem_session=${await store.newSession(state.id, state.users[1].id)}`;
   return {
     store,
     state,
@@ -96,7 +96,7 @@ test('CSV routes enforce authentication, current ownership, origins and garage i
     });
     assert.equal(response.status, 200);
     const file = await response.json();
-    assert.equal(file.filename, `carm-customers-exemple.${format}`);
+    assert.equal(file.filename, `caragem-customers-exemple.${format}`);
     const converted = await post('data-transfer/read', { base64: file.base64 });
     assert.equal(converted.status, 200);
     assert.equal(parseCsv((await converted.json()).csv).rows.length, 1);

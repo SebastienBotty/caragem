@@ -9,7 +9,7 @@ test('sessions isolate garages; demo identity overrides cannot impersonate real 
     const a = await db.create(true),
       b = await db.create(true);
     const token = await db.newSession(a.id, a.users[0].id),
-      cookie = `carm_session=${token}`;
+      cookie = `caragem_session=${token}`;
     const session = (await db.session(cookie))!;
     assert.equal(session.garageId, a.id);
     assert.equal((await db.session(cookie, a.users[1].id))?.userId, a.users[1].id);
@@ -22,9 +22,9 @@ test('sessions isolate garages; demo identity overrides cannot impersonate real 
       name: 'Owner',
       garage: 'Personal Garage',
     });
-    const realCookie = `carm_session=${await db.newSession(real.garageId, real.userId)}`;
+    const realCookie = `caragem_session=${await db.newSession(real.garageId, real.userId)}`;
     assert.equal(await db.session(realCookie, real.userId), undefined);
-    assert.equal(await db.session('carm_session=' + 'a'.repeat(64)), undefined);
+    assert.equal(await db.session('caragem_session=' + 'a'.repeat(64)), undefined);
     await assert.rejects(
       db.act(session, { type: 'note', id: b.vehicles[0].id, text: 'foreign mutation' }),
       /introuvable/,
@@ -44,7 +44,7 @@ test('salted password hashes verify exactly and invitations are scoped and singl
   try {
     const a = await db.create(true);
     const token = await db.newSession(a.id, a.users[0].id);
-    const session = (await db.session(`carm_session=${token}`))!;
+    const session = (await db.session(`caragem_session=${token}`))!;
     const invite = await db.invite(session, 'test@example.com', 'mechanic');
     assert.equal(await db.invitation(invite, 'other@example.com'), undefined);
     assert.equal((await db.invitation(invite, 'test@example.com'))?.garage_id, a.id);
@@ -70,8 +70,8 @@ test('one account joins multiple garages, keeps distinct roles, and creates empt
       name: 'Bob',
       garage: 'Garage B',
     });
-    const ownerA = (await db.session(`carm_session=${await db.newSession(a.garageId, a.userId)}`))!;
-    const ownerB = (await db.session(`carm_session=${await db.newSession(b.garageId, b.userId)}`))!;
+    const ownerA = (await db.session(`caragem_session=${await db.newSession(a.garageId, a.userId)}`))!;
+    const ownerB = (await db.session(`caragem_session=${await db.newSession(b.garageId, b.userId)}`))!;
     const token = await db.invite(ownerA, 'b@example.com', 'mechanic');
     await assert.rejects(db.joinGarage('other@example.com', token), /invitation|Invitation/);
     const joined = await db.joinGarage('b@example.com', token);
@@ -83,7 +83,7 @@ test('one account joins multiple garages, keeps distinct roles, and creates empt
       new Set(['owner', 'mechanic']),
     );
     await assert.rejects(db.joinGarage('b@example.com', token), /Invitation/);
-    const mechanicCookie = `carm_session=${await db.newSession(joined.garageId, joined.userId)}`;
+    const mechanicCookie = `caragem_session=${await db.newSession(joined.garageId, joined.userId)}`;
     const mechanic = (await db.session(mechanicCookie))!;
     await assert.rejects(db.invite(mechanic, 'x@example.com', 'mechanic'), /autorisation/);
     await assert.rejects(db.membership('a@example.com', b.garageId), /partie/);
@@ -114,7 +114,7 @@ test('one account joins multiple garages, keeps distinct roles, and creates empt
     const pending = await db.invitations(ownerA);
     await db.revokeInvitation(ownerA, pending.find((i) => i.email === 'new@example.com')!.id);
     assert.equal(await db.invitation(revoked, 'new@example.com'), undefined);
-    const extraCookie = `carm_session=${await db.newSession(extra.garageId, extra.userId)}`;
+    const extraCookie = `caragem_session=${await db.newSession(extra.garageId, extra.userId)}`;
     await db.changePassword(ownerB, await passwordHash('a different strong password'));
     assert.equal(await db.session(mechanicCookie), undefined);
     assert.equal(await db.session(extraCookie), undefined);
@@ -128,7 +128,7 @@ test('concurrent actions lock garage rows and preserve every committed change', 
   try {
     const state = await db.create(true);
     const session = (await db.session(
-      `carm_session=${await db.newSession(state.id, state.users[0].id)}`,
+      `caragem_session=${await db.newSession(state.id, state.users[0].id)}`,
     ))!;
     await Promise.all(
       Array.from({ length: 12 }, (_, i) =>

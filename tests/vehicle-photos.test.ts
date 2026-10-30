@@ -74,9 +74,9 @@ test('photo API isolates tenants and history, persists images outside snapshots,
   try {
     const state = await store.create(true),
       other = await store.create(true);
-    const owner = `carm_session=${await store.newSession(state.id, state.users[0].id)}`;
-    const worker = `carm_session=${await store.newSession(state.id, state.users[1].id)}`;
-    const stranger = `carm_session=${await store.newSession(other.id, other.users[0].id)}`;
+    const owner = `caragem_session=${await store.newSession(state.id, state.users[0].id)}`;
+    const worker = `caragem_session=${await store.newSession(state.id, state.users[1].id)}`;
+    const stranger = `caragem_session=${await store.newSession(other.id, other.users[0].id)}`;
     const session = (await store.session(owner))!;
     const source = await sharp(randomBytes(512 * 512 * 3), {
       raw: { width: 512, height: 512, channels: 3 },

@@ -214,15 +214,15 @@ export async function accountProfileApi(
     try {
       await mailer({
         to: input.email,
-        subject: 'CaRM — Vérifier votre nouvelle adresse',
-        text: `Votre code de vérification CaRM est ${newCode}. Il expire dans 10 minutes. Si vous n’avez pas demandé ce changement, ignorez ce mail.`,
+        subject: 'Caragem — Vérifier votre nouvelle adresse',
+        text: `Votre code de vérification Caragem est ${newCode}. Il expire dans 10 minutes. Si vous n’avez pas demandé ce changement, ignorez ce mail.`,
       });
       await mailer({
         to: email,
-        subject: 'CaRM — Changement d’adresse demandé',
+        subject: 'Caragem — Changement d’adresse demandé',
         text: oldRequired
-          ? `Un changement d’adresse CaRM vers ${input.email} a été demandé. Votre code de confirmation est ${oldCode}. Il expire dans 10 minutes. Si vous n’êtes pas à l’origine de cette demande, ne partagez pas ce code et déconnectez les autres sessions.`
-          : `Un changement d’adresse CaRM vers ${input.email} a été demandé. Votre adresse actuelle reste utilisée tant que la nouvelle adresse n’a pas été vérifiée. Si vous n’êtes pas à l’origine de cette demande, changez votre mot de passe et déconnectez les autres sessions.`,
+          ? `Un changement d’adresse Caragem vers ${input.email} a été demandé. Votre code de confirmation est ${oldCode}. Il expire dans 10 minutes. Si vous n’êtes pas à l’origine de cette demande, ne partagez pas ce code et déconnectez les autres sessions.`
+          : `Un changement d’adresse Caragem vers ${input.email} a été demandé. Votre adresse actuelle reste utilisée tant que la nouvelle adresse n’a pas été vérifiée. Si vous n’êtes pas à l’origine de cette demande, changez votre mot de passe et déconnectez les autres sessions.`,
       });
       await store.db.query(
         'UPDATE account_email_changes SET ready=true WHERE account_email=$1 AND request_id=$2',

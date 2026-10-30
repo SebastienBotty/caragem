@@ -64,7 +64,7 @@ test('blockage details and history persist in PostgreSQL', async () => {
   const store = new Store(testDatabase());
   try {
     const state = await store.create(true);
-    const cookie = `carm_session=${await store.newSession(state.id, state.users[0].id)}`;
+    const cookie = `caragem_session=${await store.newSession(state.id, state.users[0].id)}`;
     const session = (await store.session(cookie))!;
     await store.act(session, {
       type: 'blocker',

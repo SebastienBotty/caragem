@@ -491,7 +491,7 @@ export class Store {
   }
   async session(cookie = '', demoUserId?: unknown): Promise<Session | undefined> {
     await this.ready;
-    const token = /(?:^|;\s*)carm_session=([a-f0-9]{64})(?:;|$)/.exec(cookie)?.[1];
+    const token = /(?:^|;\s*)caragem_session=([a-f0-9]{64})(?:;|$)/.exec(cookie)?.[1];
     if (!token) return;
     const [row] = await this.rows<{
       token_hash: string;

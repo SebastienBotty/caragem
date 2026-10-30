@@ -32,7 +32,7 @@ async function fixture(email: string, google = false) {
     ]);
   }
   const token = await store.newSession(target.garageId, target.userId, 'Test browser', Date.now());
-  const session = (await store.session(`carm_session=${token}`))!;
+  const session = (await store.session(`caragem_session=${token}`))!;
   const io = new Server();
   const messages: AccountMail[] = [];
   const mailer: AccountMailer = async (mail) => {
@@ -168,7 +168,7 @@ test('password reauthentication and a single-use new-address code preserve membe
     assert.equal(f.messages.length, 2);
     const code = receivedCode(f.messages, 'changed@example.com');
     await assert.rejects(
-      f.call('email/confirm', { code }, (await f.store.session(`carm_session=${oldOtherToken}`))!),
+      f.call('email/confirm', { code }, (await f.store.session(`caragem_session=${oldOtherToken}`))!),
       /expirée/,
     );
     const pending = await f.store.db.query(
@@ -179,11 +179,11 @@ test('password reauthentication and a single-use new-address code preserve membe
     await assert.rejects(f.call('email/confirm', { code: '000000' }), /incorrect/);
     const changed = await f.call('email/confirm', { code });
     assert.equal(changed.status, 200);
-    assert.match(changed.cookie, /carm_session=[a-f0-9]{64}/);
+    assert.match(changed.cookie, /caragem_session=[a-f0-9]{64}/);
     const newSession = await f.store.session(changed.cookie.split(';')[0]);
     assert.equal(newSession!.email, 'changed@example.com');
     assert.equal(newSession!.authenticatedAt, f.session.authenticatedAt);
-    assert.equal(await f.store.session(`carm_session=${oldOtherToken}`), undefined);
+    assert.equal(await f.store.session(`caragem_session=${oldOtherToken}`), undefined);
     assert.equal(await f.store.account('email-password@example.com'), undefined);
     assert.equal((await f.store.garages('changed@example.com')).length, 2);
     assert.equal(

@@ -149,7 +149,7 @@ export function createApi(
                     : 128000,
             )
           : undefined;
-      session = await store.session(req.headers.cookie, req.headers['x-carm-demo-user']);
+      session = await store.session(req.headers.cookie, req.headers['x-caragem-demo-user']);
       if (await google(req, res, path, inputBody, session, send)) return true;
       if (await accountSecurityApi(store, io, req, res, path, inputBody, session, send))
         return true;

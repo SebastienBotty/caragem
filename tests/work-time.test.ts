@@ -149,7 +149,7 @@ test('estimates persist in PostgreSQL without changing task minutes', async () =
   try {
     const state = await store.create(true);
     const session = (await store.session(
-      `carm_session=${await store.newSession(state.id, state.users[0].id)}`,
+      `caragem_session=${await store.newSession(state.id, state.users[0].id)}`,
     ))!;
     const vehicle = state.vehicles.find((v) => v.stage !== 'returned' && v.stage !== 'ready')!;
     const task = vehicle.tasks[0];

@@ -10,7 +10,7 @@ import { importLegacyDatabase, readLegacyDatabase } from '../src/server/import-s
 import { testDatabase } from './helpers/database.ts';
 
 test('SQLite import preserves garage data, account hashes, sessions and invitations without overwriting PostgreSQL', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'carm-import-'));
+  const directory = mkdtempSync(join(tmpdir(), 'caragem-import-'));
   const path = join(directory, 'legacy.sqlite');
   const old = new DatabaseSync(path);
   const target = new Store(testDatabase());
@@ -40,7 +40,7 @@ test('SQLite import preserves garage data, account hashes, sessions and invitati
     assert.deepEqual(imported, state);
     assert.ok(billing!.trialEndsAt > Date.now());
     assert.equal((await target.account('legacy@example.com'))?.hash, hash);
-    assert.equal((await target.session(`carm_session=${token}`))?.email, 'legacy@example.com');
+    assert.equal((await target.session(`caragem_session=${token}`))?.email, 'legacy@example.com');
     assert.equal((await target.invitation(invitation, 'invite@example.com'))?.garage_id, state.id);
     await assert.rejects(importLegacyDatabase(target, legacy), /vide/);
     assert.equal(

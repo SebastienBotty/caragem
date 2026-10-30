@@ -218,7 +218,7 @@ export async function accountApi(
   if (path === '/api/logout') {
     await store.logout(session);
     io.in(`session:${session.tokenHash}`).disconnectSockets();
-    res.setHeader('Set-Cookie', 'carm_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
+    res.setHeader('Set-Cookie', 'caragem_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
     send(200, { ok: true });
     return true;
   }

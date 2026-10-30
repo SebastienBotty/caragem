@@ -65,7 +65,7 @@ export function AccountScreen() {
               </Field>
             </Form>
           ) : (
-            <p>Vous vous connectez avec Google. Aucun mot de passe CaRM n’est enregistré.</p>
+            <p>Vous vous connectez avec Google. Aucun mot de passe Caragem n’est enregistré.</p>
           )}
           <div className="google-account-settings">
             <h3>Connexion Google</h3>
@@ -74,7 +74,7 @@ export function AccountScreen() {
             ) : (
               <>
                 <p>Associez le compte Google correspondant à {account.email}.</p>
-                <Field label="Confirmer votre mot de passe CaRM">
+                <Field label="Confirmer votre mot de passe Caragem">
                   <input
                     type="password"
                     autoComplete="current-password"

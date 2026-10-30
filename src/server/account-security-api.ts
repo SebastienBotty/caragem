@@ -40,13 +40,13 @@ type LoginTarget = {
 };
 const userAgent = (req: IncomingMessage) => String(req.headers['user-agent'] ?? '').slice(0, 300);
 const challengeCookie = (value: string, age = 300) =>
-  `carm_2fa=${value}; HttpOnly; SameSite=Lax; Path=/api/auth/2fa; Max-Age=${age}${appOrigin().startsWith('https:') ? '; Secure' : ''}`;
+  `caragem_2fa=${value}; HttpOnly; SameSite=Lax; Path=/api/auth/2fa; Max-Age=${age}${appOrigin().startsWith('https:') ? '; Secure' : ''}`;
 const appendCookie = (res: ServerResponse, value: string) => {
   const old = res.getHeader('Set-Cookie');
   res.setHeader('Set-Cookie', [...(Array.isArray(old) ? old : old ? [String(old)] : []), value]);
 };
 const challengeToken = (req: IncomingMessage) =>
-  /(?:^|;\s*)carm_2fa=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie ?? '')?.[1];
+  /(?:^|;\s*)caragem_2fa=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie ?? '')?.[1];
 const codeSchema = z.string().trim().min(6).max(80);
 const securityRow = async (sql: Sql, email: string, lock = false) =>
   (
@@ -284,7 +284,7 @@ export async function accountSecurityApi(
     });
     send(200, {
       secret,
-      uri: `otpauth://totp/${encodeURIComponent(`CaRM:${session.email}`)}?secret=${secret}&issuer=CaRM&algorithm=SHA1&digits=6&period=30`,
+      uri: `otpauth://totp/${encodeURIComponent(`Caragem:${session.email}`)}?secret=${secret}&issuer=Caragem&algorithm=SHA1&digits=6&period=30`,
     });
     return true;
   }

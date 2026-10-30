@@ -116,7 +116,7 @@ test(
         garage: 'Garage',
         hash,
       });
-      const ownerCookie = `carm_session=${await store.newSession(owner.garageId, owner.userId)}`;
+      const ownerCookie = `caragem_session=${await store.newSession(owner.garageId, owner.userId)}`;
       const ownerSession = (await store.session(ownerCookie))!;
       let response = await post(
         'actions',
@@ -149,7 +149,7 @@ test(
         hash,
         invitation: token,
       });
-      const workerCookie = `carm_session=${await store.newSession(worker.garageId, worker.userId)}`;
+      const workerCookie = `caragem_session=${await store.newSession(worker.garageId, worker.userId)}`;
       const joined = (await store.get(state.id)).users.find((u) => u.id === worker.userId)!;
       assert.equal(joined.customRoleId, role.id);
       assert.equal(joined.role, 'reception');
@@ -174,7 +174,7 @@ test(
         400,
       );
       const other = await store.create(true);
-      const otherCookie = `carm_session=${await store.newSession(other.id, other.users[0].id)}`;
+      const otherCookie = `caragem_session=${await store.newSession(other.id, other.users[0].id)}`;
       assert.equal(
         (
           await post(

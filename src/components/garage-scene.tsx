@@ -437,7 +437,7 @@ function Camera({
   const persist = useCallback(() => {
     if (!garageId || !view.current) return;
     try {
-      sessionStorage.setItem(`carm-camera:${garageId}`, JSON.stringify(view.current));
+      sessionStorage.setItem(`caragem-camera:${garageId}`, JSON.stringify(view.current));
     } catch {
       /* The current camera still works when browser storage is unavailable. */
     }
@@ -456,7 +456,7 @@ function Camera({
     previousRequest.current = { garageId, focus, reset };
     if (initial && garageId && ref.current) {
       try {
-        const raw = sessionStorage.getItem(`carm-camera:${garageId}`);
+        const raw = sessionStorage.getItem(`caragem-camera:${garageId}`);
         const saved = cameraViewSchema.safeParse(raw ? JSON.parse(raw) : undefined);
         if (saved.success) {
           view.current = saved.data;

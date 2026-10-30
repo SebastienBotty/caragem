@@ -35,7 +35,7 @@ export function Auth({ done, notice = '' }: { done: () => Promise<void>; notice?
           <span className="brand-mark">
             <Layers3 />
           </span>
-          CaRM<span className="brand-dot">.</span>
+          Caragem<span className="brand-dot">.</span>
         </a>
         <div className="auth-copy">
           <span className="eyebrow">LE QUOTIDIEN DU GARAGE, RÉINVENTÉ</span>
@@ -89,7 +89,7 @@ export function Auth({ done, notice = '' }: { done: () => Promise<void>; notice?
       </div>
       <div className="auth-panel">
         <div className="auth-card">
-          <span className="badge blue">BIENVENUE CHEZ CaRM</span>
+          <span className="badge blue">BIENVENUE CHEZ Caragem</span>
           {twoFactor ? (
             <>
               <h2>Vérifiez votre connexion.</h2>
@@ -262,7 +262,7 @@ export function Auth({ done, notice = '' }: { done: () => Promise<void>; notice?
             </>
           )}
         </div>
-        <span className="auth-foot">CaRM · Le garage, en mouvement.</span>
+        <span className="auth-foot">Caragem · Le garage, en mouvement.</span>
       </div>
     </main>
   );

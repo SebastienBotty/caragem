@@ -26,7 +26,7 @@ export async function googleConfiguration() {
   return config;
 }
 function transactionCookie(value: string, age = 600) {
-  return `carm_google=${value}; HttpOnly; SameSite=Lax; Path=${callbackPath}; Max-Age=${age}${appOrigin().startsWith('https:') ? '; Secure' : ''}`;
+  return `caragem_google=${value}; HttpOnly; SameSite=Lax; Path=${callbackPath}; Max-Age=${age}${appOrigin().startsWith('https:') ? '; Secure' : ''}`;
 }
 export function googleProfile(claims: oidc.IDToken): GoogleProfile {
   const input = z
@@ -123,7 +123,7 @@ export function createGoogleApi(store: Store, io: Server, configuration = google
     try {
       const url = new URL(req.url!, appOrigin());
       const state = url.searchParams.get('state');
-      const browser = /(?:^|;\s*)carm_google=([a-f0-9]{64})(?:;|$)/.exec(
+      const browser = /(?:^|;\s*)caragem_google=([a-f0-9]{64})(?:;|$)/.exec(
         req.headers.cookie ?? '',
       )?.[1];
       if (!state || state.length > 200 || !browser) throw new UserError('google_invalid_request');

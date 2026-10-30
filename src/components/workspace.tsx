@@ -27,9 +27,9 @@ export function Workspace() {
     if (params.has('google_result') || params.has('google_error')) {
       setAuthNotice(googleAuthMessage(params.get('google_error')));
       if (params.get('google_result') === 'success') {
-        sessionStorage.removeItem('carm-demo-user');
+        sessionStorage.removeItem('caragem-demo-user');
         try {
-          localStorage.setItem('carm-session-change', crypto.randomUUID());
+          localStorage.setItem('caragem-session-change', crypto.randomUUID());
         } catch {
           /* Other tabs can still refresh manually. */
         }
@@ -44,7 +44,7 @@ export function Workspace() {
     }
     void refresh();
     const changed = (event: StorageEvent) => {
-      if (event.key === 'carm-session-change') void refresh();
+      if (event.key === 'caragem-session-change') void refresh();
     };
     window.addEventListener('storage', changed);
     return () => window.removeEventListener('storage', changed);
@@ -56,7 +56,7 @@ export function Workspace() {
           <span className="brand-mark">
             <Layers3 />
           </span>
-          CaRM.
+          Caragem.
         </span>
         {error ? (
           <>

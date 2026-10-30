@@ -111,7 +111,7 @@ export function AccountPreferencesPanel() {
           />
           <span>Réduire les animations</span>
         </label>
-        <h4>Notifications dans CaRM</h4>
+        <h4>Notifications dans Caragem</h4>
         <p>
           Choisissez les informations affichées dans votre centre de notifications. Les mails aux
           clients restent validés manuellement.

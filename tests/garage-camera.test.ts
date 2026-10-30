@@ -196,7 +196,7 @@ test('camera preserves wheel and button zoom through actions, resize and remount
     assert.ok(Math.abs(view.camera.position.distanceTo(target) - distance) < 1e-8);
   }
   listeners.get('pagehide')!();
-  const saved = JSON.parse(storage.get('carm-camera:camera-a')!);
+  const saved = JSON.parse(storage.get('caragem-camera:camera-a')!);
   view.dispose();
   const restored = mount('camera-a');
   restored.settle();
@@ -224,7 +224,7 @@ test('camera preserves wheel and button zoom through actions, resize and remount
   preview.move();
   preview.dispose();
   assert.equal(storage.size, count);
-  storage.set('carm-camera:invalid', '{broken');
+  storage.set('caragem-camera:invalid', '{broken');
   const invalid = mount('invalid');
   invalid.settle();
   assert.ok(invalid.camera.position.toArray().every(Number.isFinite));

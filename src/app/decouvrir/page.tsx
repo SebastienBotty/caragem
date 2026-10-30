@@ -1,9 +1,9 @@
 import { LandingPage } from '@/components/landing-page';
 
 export const metadata = {
-  title: 'CaRM — Votre atelier, en mouvement',
+  title: 'Caragem — Votre atelier, en mouvement',
   description:
-    'Suivez une intervention dans le véritable garage 3D de CaRM : clients, véhicules, équipe et stock.',
+    'Suivez une intervention dans le véritable garage 3D de Caragem : clients, véhicules, équipe et stock.',
 };
 
 export default function Page() {

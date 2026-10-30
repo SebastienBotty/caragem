@@ -6,7 +6,7 @@ export function testDatabase(): Database {
     throw new Error(
       'Configurez TEST_DATABASE_URL dans .env.test avec une base PostgreSQL dédiée aux tests.',
     );
-  const schema = 'carm_test_' + randomUUID().replaceAll('-', '');
+  const schema = 'caragem_test_' + randomUUID().replaceAll('-', '');
   const url = new URL(process.env.TEST_DATABASE_URL);
   url.searchParams.set('options', '-c search_path=' + schema);
   const db = postgresDatabase(url.toString());
@@ -23,7 +23,7 @@ export function testDatabase(): Database {
     async close() {
       try {
         await ready;
-        if (!/^carm_test_[a-f0-9]{32}$/.test(schema)) throw Error('Unsafe test schema');
+        if (!/^caragem_test_[a-f0-9]{32}$/.test(schema)) throw Error('Unsafe test schema');
         await db.query(`DROP SCHEMA "${schema}" CASCADE`);
       } finally {
         await db.close();

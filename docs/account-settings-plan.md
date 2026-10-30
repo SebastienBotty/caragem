@@ -1,6 +1,6 @@
 # Paramètres personnels
 
-Fonctionnalités autorisées : profil prénom/nom/photo, changement d’adresse vérifié, notifications personnelles dans CaRM, sessions et révocation, écran et garage par défaut, qualité 3D et animations, double authentification avec codes de secours. L’espace « Mon compte » est accessible depuis l’avatar, distinct des réglages du garage et disponible même avec un abonnement expiré.
+Fonctionnalités autorisées : profil prénom/nom/photo, changement d’adresse vérifié, notifications personnelles dans Caragem, sessions et révocation, écran et garage par défaut, qualité 3D et animations, double authentification avec codes de secours. L’espace « Mon compte » est accessible depuis l’avatar, distinct des réglages du garage et disponible même avec un abonnement expiré.
 
 Répartition : sous-agent profil/email, sous-agent sécurité/sessions/2FA, sous-agent préférences/notifications/3D ; intégration, revue des interfaces, tests globaux et commits par la racine.
 

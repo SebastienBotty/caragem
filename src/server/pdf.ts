@@ -59,7 +59,7 @@ export async function documentPdf(s: GarageState, d: Document) {
   };
   const vehicle = s.vehicles.find((v) => v.id === d.vehicleId)!;
   const customer = s.customers.find((c) => c.id === vehicle.customerId)!;
-  text('CaRM', 45, 27, true, blue);
+  text('Caragem', 45, 27, true, blue);
   text('BROUILLON DE TRAVAIL - MVP', 330, 10, true, muted);
   y -= 42;
   for (const name of wrapped(s.settings.name, 500, 17)) {

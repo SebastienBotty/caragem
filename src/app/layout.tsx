@@ -3,7 +3,7 @@ import './globals.css';
 import './theme.css';
 
 export const metadata: Metadata = {
-  title: 'CaRM — Votre garage, en mouvement',
+  title: 'Caragem — Votre garage, en mouvement',
   description:
     'Le garage visuel et collaboratif. Véhicules, interventions, équipe et gestion dans un même espace.',
 };

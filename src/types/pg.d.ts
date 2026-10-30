@@ -1,4 +1,4 @@
-// Only the node-postgres surface used by CaRM; validated by PostgreSQL integration tests.
+// Only the node-postgres surface used by Caragem; validated by PostgreSQL integration tests.
 declare module 'pg' {
   export type QueryResult = { rows: Record<string, unknown>[] };
   export type PoolConfig = {

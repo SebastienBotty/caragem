@@ -51,8 +51,8 @@ test(
     try {
       const state = await store.create(true);
       const [owner, mechanic] = state.users;
-      const ownerCookie = `carm_session=${await store.newSession(state.id, owner.id)}`;
-      const workerCookie = `carm_session=${await store.newSession(state.id, mechanic.id)}`;
+      const ownerCookie = `caragem_session=${await store.newSession(state.id, owner.id)}`;
+      const workerCookie = `caragem_session=${await store.newSession(state.id, mechanic.id)}`;
       let view = (await (await get('session', workerCookie)).json()).state as GarageState;
       assert.deepEqual(view.documents, []);
       assert.ok(view.customers.every((c) => !c.email && !c.phone));

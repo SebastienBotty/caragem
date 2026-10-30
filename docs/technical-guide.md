@@ -1,4 +1,4 @@
-# CaRM — Guide technique et fonctionnel
+# Caragem — Guide technique et fonctionnel
 
 Ce guide complète la [présentation du projet](../README.md). Les paramètres personnels et les abonnements sont détaillés dans les guides dédiés.
 
@@ -70,7 +70,7 @@ Sans ces identifiants, le bouton reste visible mais désactivé et la connexion 
 
 Un nouveau compte Google obtient un garage vide à configurer. Depuis un lien d’invitation, le compte rejoint directement le garage invité, avec le rôle prévu, sans créer de garage supplémentaire. Google est identifié par son `sub`, et non par son adresse mail. Les jetons d’accès Google ne sont pas conservés.
 
-Pour une adresse déjà inscrite avec un mot de passe CaRM, se connecter par mail puis aller dans **Mon compte → Connexion au compte → Connexion Google** pour confirmer le mot de passe et associer explicitement le compte Google de même adresse. Cette association conserve les garages et le mot de passe existants. Les comptes créés uniquement avec Google n’ont pas de mot de passe CaRM.
+Pour une adresse déjà inscrite avec un mot de passe Caragem, se connecter par mail puis aller dans **Mon compte → Connexion au compte → Connexion Google** pour confirmer le mot de passe et associer explicitement le compte Google de même adresse. Cette association conserve les garages et le mot de passe existants. Les comptes créés uniquement avec Google n’ont pas de mot de passe Caragem.
 
 Le parcours vérifie PKCE, `state`, `nonce`, signature, audience, émetteur, expiration et adresse Google vérifiée. Les demandes expirent après 10 minutes et sont utilisables une seule fois.
 
@@ -108,7 +108,7 @@ Le catalogue de marques est maintenu dans `src/lib/vehicle-makes.ts`. Il couvre 
 
 ### Import de l’ancienne base SQLite
 
-Si une ancienne base existe, le fichier source `data/carm.sqlite` reste intact. L’import conserve les garages, les mots de passe hachés, les appartenances et les sessions. Si plusieurs anciennes invitations ciblent le même email dans un garage, seul le dernier lien est conservé. La cible doit être vide ; un conflit annule l’ensemble de l’import.
+Si une ancienne base existe, le fichier source `data/legacy.sqlite` reste intact. L’import conserve les garages, les mots de passe hachés, les appartenances et les sessions. Si plusieurs anciennes invitations ciblent le même email dans un garage, seul le dernier lien est conservé. La cible doit être vide ; un conflit annule l’ensemble de l’import. Utiliser `--source=chemin/ancienne.sqlite` pour choisir un fichier existant portant un autre nom.
 
 ```sh
 npm run db:import:sqlite
@@ -122,6 +122,8 @@ La première commande affiche uniquement les quantités à importer. `--source=c
 Dans **Paramètres → Importer / exporter les données**, le responsable peut transférer les clients, véhicules et visites (avec tâches et notes), stocks, réservations de pièces, rendez-vous, commandes fournisseurs, devis et factures. Formats CSV, Excel XLS et XLSX, modèles vides, exemples remplis, structure des colonnes, aperçu et confirmation sont inclus. Un import invalide est annulé en totalité ; les données existantes ne sont pas écrasées. Formats et exemples : [guide du transfert](csv-transfer.md). Limite d’import : 1 Mio / 5 000 lignes par fichier. Pour Excel, seule la première feuille est analysée ; les dates doivent être en texte ISO.
 
 ## Configuration
+
+Le nom de l’application et les préfixes des cookies, du stockage navigateur et des exports sont désormais `caragem`. Après une mise à jour du nom, les utilisateurs doivent se reconnecter et leurs anciens réglages de caméra locaux peuvent être réinitialisés. Les données métier, la clé de chiffrement et les identifiants Stripe existants sont conservés. Les noms physiques des bases, les connexions privées et les archives SQLite ne sont pas modifiés ; une ancienne archive reste importable en fournissant explicitement `--source=chemin/ancienne.sqlite`.
 
 Copier `.env.example` vers `.env` si nécessaire, puis renseigner `DATABASE_URL` avec la connexion PostgreSQL / Neon. Elle est lue uniquement au serveur. `APP_ORIGIN` doit être l’origine exacte utilisée par les navigateurs, par exemple `https://garage.example.com`, et `HOST=0.0.0.0` permet l’écoute réseau. En production, utiliser HTTPS : les cookies sont alors marqués Secure. Pour essayer sur téléphone, utiliser une origine réseau accessible et identique sur tous les appareils.
 

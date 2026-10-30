@@ -40,7 +40,7 @@ const http = createServer(async (req, res) => {
 const io = createRealtime(http, store);
 const api = createApi(store, io);
 http.listen(port, hostname, () =>
-  console.log(`CaRM prêt sur http://${hostname === '0.0.0.0' ? 'localhost' : hostname}:${port}`),
+  console.log(`Caragem prêt sur http://${hostname === '0.0.0.0' ? 'localhost' : hostname}:${port}`),
 );
 process.on('SIGTERM', async () => {
   clearInterval(cleanupDemos);

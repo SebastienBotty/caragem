@@ -1,4 +1,4 @@
-# Landing page CaRM
+# Landing page Caragem
 
 La page `/decouvrir` présente une intervention au fil du défilement : saisie progressive d’un client, arrivée de sa Peugeot 308, affectation à Sarah, déplacement vers l’atelier, consommation d’un filtre, réception de cinq filtres et fin de l’intervention.
 

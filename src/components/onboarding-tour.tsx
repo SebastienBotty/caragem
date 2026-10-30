@@ -179,7 +179,7 @@ export function OnboardingTour({
           <span className="eyebrow">
             {current
               ? `PRISE EN MAIN · ÉTAPE ${index + 1} SUR ${steps.length}`
-              : 'BIENVENUE CHEZ CaRM'}
+              : 'BIENVENUE CHEZ Caragem'}
           </span>
           <h2 id={titleId}>{current?.title ?? 'Découvrez votre nouvel atelier.'}</h2>
           <p>
@@ -204,7 +204,7 @@ export function OnboardingTour({
             onClick={() => (index === steps.length - 1 ? void dismiss() : advance())}
           >
             {!current
-              ? 'Découvrir CaRM'
+              ? 'Découvrir Caragem'
               : current.navigation
                 ? `Ouvrir ${current.navigation}`
                 : index === steps.length - 1

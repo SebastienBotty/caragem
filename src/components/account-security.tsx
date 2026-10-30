@@ -129,7 +129,7 @@ export function AccountSecurityPanel() {
               configuration. Choisissez un code temporel, SHA-1, 6 chiffres et 30 secondes.
             </p>
             <Field label="Nom du compte">
-              <input readOnly value={`CaRM : ${account?.email}`} />
+              <input readOnly value={`Caragem : ${account?.email}`} />
             </Field>
             <Field label="Clé à saisir dans l’application">
               <input
@@ -182,12 +182,12 @@ export function AccountSecurityPanel() {
                 const link = document.createElement('a');
                 const url = URL.createObjectURL(
                   new Blob(
-                    [`Codes de secours CaRM — ${account?.email}\n\n${recovery.join('\n')}\n`],
+                    [`Codes de secours Caragem — ${account?.email}\n\n${recovery.join('\n')}\n`],
                     { type: 'text/plain' },
                   ),
                 );
                 link.href = url;
-                link.download = 'carm-codes-de-secours.txt';
+                link.download = 'caragem-codes-de-secours.txt';
                 link.click();
                 URL.revokeObjectURL(url);
               }}

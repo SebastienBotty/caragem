@@ -1,4 +1,4 @@
-# Audit de sécurité CaRM — 29 octobre 2026
+# Audit de sécurité Caragem — 29 octobre 2026
 
 > Rapport initial conservé comme historique. Les corrections et leurs vérifications sont décrites dans [security-fixes.md](security-fixes.md). Le traitement du proxy (SEC-02) reste différé à la demande de l’utilisateur.
 

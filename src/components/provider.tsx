@@ -20,18 +20,18 @@ export async function request<T = Record<string, unknown>>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const demoUserId = sessionStorage.getItem('carm-demo-user') ?? undefined;
+  const demoUserId = sessionStorage.getItem('caragem-demo-user') ?? undefined;
   const res = await fetch(`/api/${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: {
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      ...(demoUserId ? { 'X-Carm-Demo-User': demoUserId } : {}),
+      ...(demoUserId ? { 'X-Caragem-Demo-User': demoUserId } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'La requête a échoué.');
-  if (path === 'demo-user') sessionStorage.setItem('carm-demo-user', data.userId);
+  if (path === 'demo-user') sessionStorage.setItem('caragem-demo-user', data.userId);
   const changesSession = [
     'demo',
     'login',
@@ -43,16 +43,16 @@ export async function request<T = Record<string, unknown>>(
     'accept-invitation',
     'account/email/confirm',
   ].includes(path);
-  if (changesSession) sessionStorage.removeItem('carm-demo-user');
+  if (changesSession) sessionStorage.removeItem('caragem-demo-user');
   if (changesSession) {
     try {
-      localStorage.setItem('carm-session-change', crypto.randomUUID());
+      localStorage.setItem('caragem-session-change', crypto.randomUUID());
     } catch {
       /* Storage may be disabled; the current tab still refreshes. */
     }
   }
   if (path === 'session' && !data.state && demoUserId) {
-    sessionStorage.removeItem('carm-demo-user');
+    sessionStorage.removeItem('caragem-demo-user');
     return request<T>(path);
   }
   return data;

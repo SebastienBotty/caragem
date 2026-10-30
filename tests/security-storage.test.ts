@@ -13,7 +13,7 @@ test('garage creation quotas are atomic and oversized snapshots cannot overwrite
       garage: 'Personal',
     });
     const session = (await store.session(
-      `carm_session=${await store.newSession(owner.garageId, owner.userId)}`,
+      `caragem_session=${await store.newSession(owner.garageId, owner.userId)}`,
     ))!;
     for (let i = 1; i < 9; i++) await store.createGarage(session, `Garage ${i}`);
     const attempts = await Promise.allSettled([
@@ -58,14 +58,14 @@ test('demo cleanup removes expired legacy demo dependencies and preserves accoun
       Date.now() + 7 * 86400000,
       expired.id,
     ]);
-    assert.equal((await store.session(`carm_session=${token}`))!.expires, expired.demoExpires);
-    const session = (await store.session(`carm_session=${token}`))!;
+    assert.equal((await store.session(`caragem_session=${token}`))!.expires, expired.demoExpires);
+    const session = (await store.session(`caragem_session=${token}`))!;
     await store.invite(session, 'pending@example.test', 'mechanic');
     await store.db.query(
       "UPDATE garages SET state=state-'demoExpires',created_at=now()-interval '2 days' WHERE id=$1",
       [expired.id],
     );
-    assert.equal(await store.session(`carm_session=${token}`), undefined);
+    assert.equal(await store.session(`caragem_session=${token}`), undefined);
     await store.purgeExpiredDemos();
     assert.equal(
       (await store.db.query('SELECT id FROM garages WHERE id=$1', [expired.id])).rows.length,

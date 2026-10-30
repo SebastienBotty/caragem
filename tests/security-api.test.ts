@@ -56,7 +56,7 @@ test('demos require an account, are unique for 24h and cannot send real invitati
     name: 'Demo',
     garage: 'Personal',
   });
-  const cookie = `carm_session=${await store.newSession(owner.garageId, owner.userId)}`;
+  const cookie = `caragem_session=${await store.newSession(owner.garageId, owner.userId)}`;
   const first = await post('demo', {}, cookie);
   assert.equal(first.status, 200);
   const demoCookie = first.headers.get('set-cookie')!.split(';')[0];
@@ -92,7 +92,7 @@ test('demos require an account, are unique for 24h and cannot send real invitati
   ]);
   const expired = await fetch(base + '/api/session', { headers: { Cookie: currentCookie } });
   assert.equal((await expired.json()).state, null);
-  const personalCookie = `carm_session=${await store.newSession(owner.garageId, owner.userId)}`;
+  const personalCookie = `caragem_session=${await store.newSession(owner.garageId, owner.userId)}`;
   const replacement = await post('demo', {}, personalCookie);
   assert.equal(replacement.status, 400);
   assert.match((await replacement.json()).error, /essai.*terminé/);
@@ -196,14 +196,14 @@ test('password confirmation is limited per account across sessions without block
     name: 'Limited',
     garage: 'Limited',
   });
-  const cookie = `carm_session=${await store.newSession(target.garageId, target.userId)}`;
+  const cookie = `caragem_session=${await store.newSession(target.garageId, target.userId)}`;
   for (let attempt = 0; attempt < 10; attempt++)
     assert.equal(
       (await post('password', { current: 'wrong', password: 'a replacement password' }, cookie))
         .status,
       400,
     );
-  const secondCookie = `carm_session=${await store.newSession(target.garageId, target.userId)}`;
+  const secondCookie = `caragem_session=${await store.newSession(target.garageId, target.userId)}`;
   assert.equal(
     (await post('password', { current: 'wrong', password: 'a replacement password' }, secondCookie))
       .status,
@@ -215,7 +215,7 @@ test('password confirmation is limited per account across sessions without block
     name: 'Other',
     garage: 'Other',
   });
-  const otherCookie = `carm_session=${await store.newSession(other.garageId, other.userId)}`;
+  const otherCookie = `caragem_session=${await store.newSession(other.garageId, other.userId)}`;
   assert.equal(
     (await post('password', { current: 'wrong', password: 'a replacement password' }, otherCookie))
       .status,

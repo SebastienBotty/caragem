@@ -14,8 +14,8 @@ Les routes `/api/account/email/start` et `/api/account/email/confirm` exigent un
 - Les codes expirent après 10 minutes, sont liés à la session initiatrice, hachés en base, à usage unique et limités à cinq erreurs. Une demande ne peut être renvoyée avant une minute ; les démarrages et confirmations sont limités sur 15 minutes.
 - La nouvelle adresse ne doit pas déjà appartenir à un autre compte. Les comptes, appartenances, sessions et identités Google sont mis à jour atomiquement via les clés étrangères `ON UPDATE CASCADE`.
 - Après confirmation, le jeton de la session courante est renouvelé sans prolonger son expiration ni sa date d’authentification. Toutes les autres sessions du compte sont révoquées et les sockets de l’ancienne identité sont déconnectées.
-- L’identité Google reste liée par son identifiant fournisseur : le changement de l’adresse CaRM n’exige pas de changer l’adresse du compte Google.
+- L’identité Google reste liée par son identifiant fournisseur : le changement de l’adresse Caragem n’exige pas de changer l’adresse du compte Google.
 
-Les vérifications utilisent le serveur SMTP déjà configuré pour CaRM, avec TLS. Sans configuration SMTP, le changement est refusé ; une erreur d’envoi ne modifie jamais l’adresse. Aucun code n’est retourné dans une réponse API ou écrit dans les journaux. Les tests injectent un transport mémoire et n’envoient aucun mail réel.
+Les vérifications utilisent le serveur SMTP déjà configuré pour Caragem, avec TLS. Sans configuration SMTP, le changement est refusé ; une erreur d’envoi ne modifie jamais l’adresse. Aucun code n’est retourné dans une réponse API ou écrit dans les journaux. Les tests injectent un transport mémoire et n’envoient aucun mail réel.
 
 Appliquer `src/server/account-profile.sql` après le schéma principal et les tables de sécurité/préférences. Cette migration est idempotente et rend les clés étrangères existantes vers `accounts` compatibles avec le changement d’adresse.

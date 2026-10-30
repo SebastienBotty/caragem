@@ -2,9 +2,9 @@ services:
   postgres-test:
     image: postgres:18
     environment:
-      POSTGRES_USER: carm_test
+      POSTGRES_USER: caragem_test
       POSTGRES_PASSWORD: local-test-only
-      POSTGRES_DB: carm_test
+      POSTGRES_DB: caragem_test
     ports:
       - '127.0.0.1:55432:5432'
     tmpfs:

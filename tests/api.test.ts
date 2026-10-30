@@ -133,7 +133,7 @@ test(
       assert.equal(updated.vehicles[0].notes[0].text, 'Socket update');
       assert.equal(foreignEvents, 0);
       const mechanic = a.state.users.find((u) => u.role === 'mechanic')!;
-      const mechanicCookie = `carm_session=${await db.newSession(a.state.id, mechanic.id)}`;
+      const mechanicCookie = `caragem_session=${await db.newSession(a.state.id, mechanic.id)}`;
       const mechanicSocket = socket(mechanicCookie, 'polling');
       await once(mechanicSocket, 'garage:state');
       const ownerPaint = once(socketA, 'garage:state');
@@ -201,7 +201,7 @@ test(
             Origin: base,
             Cookie: cookieA,
             'Content-Type': 'application/json',
-            'X-Carm-Demo-User': mechanic.id,
+            'X-Caragem-Demo-User': mechanic.id,
           },
           body: JSON.stringify({
             type: 'task',

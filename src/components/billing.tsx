@@ -148,7 +148,7 @@ export function BillingNotice() {
         </div>
       )}
       {open && (
-        <Modal title="Abonnement CaRM" close={() => setOpen(false)}>
+        <Modal title="Abonnement Caragem" close={() => setOpen(false)}>
           <BillingCard />
         </Modal>
       )}

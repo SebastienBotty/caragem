@@ -123,7 +123,7 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
           <span className="brand-mark">
             <Layers3 size={25} />
           </span>
-          CaRM<span className="brand-dot">.</span>
+          Caragem<span className="brand-dot">.</span>
           <span className="brand-beta">BETA</span>
         </a>
         <button className="garage-switch" onClick={() => setSwitchGarage(true)}>
@@ -364,7 +364,7 @@ export function AppShell({ initialPage }: { initialPage?: string }) {
             {page === 'account' && <AccountScreen />}
           </div>
           <footer className="workspace-footer">
-            <span>CaRM · Le garage, en mouvement.</span>
+            <span>Caragem · Le garage, en mouvement.</span>
             <span>
               <span className="live-dot" />
               {state.demo ? 'Données de démonstration' : 'Données enregistrées dans votre garage'}

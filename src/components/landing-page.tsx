@@ -15,12 +15,12 @@ export function LandingPage() {
     <div className="landing">
       <header className="landing-nav">
         <Link href="/decouvrir" className="landing-brand">
-          <Layers3 size={27} /> CaRM.
+          <Layers3 size={27} /> Caragem.
         </Link>
         <nav>
           <a href="#histoire">Comment ça marche</a>
           <Link href="/" className="button primary">
-            Ouvrir CaRM <ArrowUpRight size={16} />
+            Ouvrir Caragem <ArrowUpRight size={16} />
           </Link>
         </nav>
       </header>
@@ -37,7 +37,7 @@ export function LandingPage() {
           <div>
             <p>
               Des clients aux pièces détachées, chaque action trouve sa place. Découvrez une journée
-              dans CaRM, au cœur de votre garage.
+              dans Caragem, au cœur de votre garage.
             </p>
             <a href="#histoire" className="button primary">
               Suivre une intervention <ArrowDown size={17} />
@@ -47,7 +47,7 @@ export function LandingPage() {
         <LandingDemo />
       </main>
       <footer className="landing-footer">
-        <span className="landing-brand">CaRM.</span>
+        <span className="landing-brand">Caragem.</span>
         <span>Clients · Véhicules · Équipe · Stock</span>
         <Link href="/">Accéder à mon garage ↗</Link>
       </footer>

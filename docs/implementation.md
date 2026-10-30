@@ -1,4 +1,4 @@
-# CaRM — MVP Next.js
+# Caragem — MVP Next.js
 
 The conversation is the approved functional specification. The user requested implementation without an additional synthesis or approval gate.
 

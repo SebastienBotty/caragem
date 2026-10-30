@@ -19,7 +19,7 @@ export const landingChapters = [
   [
     '09:00 · Intervention',
     'Votre atelier prend vie.',
-    'La tâche démarre et la voiture rejoint l’atelier. Retrouvez le même visualisateur que dans CaRM.',
+    'La tâche démarre et la voiture rejoint l’atelier. Retrouvez le même visualisateur que dans Caragem.',
   ],
   [
     '09:20 · Pièce utilisée',

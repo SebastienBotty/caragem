@@ -41,8 +41,8 @@ test('tour dismissal persists per account across garages and per demo member wit
       garage: 'Garage Béatrice',
       hash,
     });
-    const alice = `carm_session=${await store.newSession(first.garageId, first.userId)}`;
-    const beatrice = `carm_session=${await store.newSession(second.garageId, second.userId)}`;
+    const alice = `caragem_session=${await store.newSession(first.garageId, first.userId)}`;
+    const beatrice = `caragem_session=${await store.newSession(second.garageId, second.userId)}`;
     assert.equal(await seen(alice), false);
     assert.equal((await post('')).status, 401);
     assert.equal((await post(alice, {}, 'https://untrusted.example')).status, 403);
@@ -52,15 +52,15 @@ test('tour dismissal persists per account across garages and per demo member wit
     assert.equal(await seen(alice), true);
     assert.equal(await seen(beatrice), false);
     const another = await store.createGarage((await store.session(alice))!, 'Garage secondaire');
-    const newDevice = `carm_session=${await store.newSession(another.garageId, another.userId)}`;
+    const newDevice = `caragem_session=${await store.newSession(another.garageId, another.userId)}`;
     assert.equal(
       await seen(newDevice),
       true,
       'preference follows the account rather than a device or garage',
     );
     const demo = await store.create(true);
-    const owner = `carm_session=${await store.newSession(demo.id, demo.users[0].id)}`;
-    const mechanic = `carm_session=${await store.newSession(demo.id, demo.users[1].id)}`;
+    const owner = `caragem_session=${await store.newSession(demo.id, demo.users[0].id)}`;
+    const mechanic = `caragem_session=${await store.newSession(demo.id, demo.users[1].id)}`;
     assert.equal(await seen(owner), false);
     assert.equal((await post(owner)).status, 200);
     assert.equal(await seen(owner), true);

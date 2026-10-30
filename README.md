@@ -1,12 +1,12 @@
-# CaRM — La gestion d’un garage, en 3D
+# Caragem — La gestion d’un garage, en 3D
 
 **Application SaaS de gestion automobile · Projet personnel full-stack · En développement**
 
-CaRM permet de suivre l’activité d’un garage dans un atelier 3D interactif : chaque véhicule occupe une zone correspondant à son étape d’intervention. Le responsable voit l’avancement du travail, les mécaniciens retrouvent leurs tâches et les changements sont partagés en temps réel.
+Caragem permet de suivre l’activité d’un garage dans un atelier 3D interactif : chaque véhicule occupe une zone correspondant à son étape d’intervention. Le responsable voit l’avancement du travail, les mécaniciens retrouvent leurs tâches et les changements sont partagés en temps réel.
 
 Le projet associe une interface visuelle à une gestion métier complète : clients, véhicules, interventions, pièces, documents et équipe.
 
-![Vue du garage CaRM : atelier 3D, zones d’intervention et suivi des véhicules](docs/images/carm-workshop.png)
+![Vue du garage Caragem : atelier 3D, zones d’intervention et suivi des véhicules](docs/images/caragem-workshop.png)
 
 _Capture de l’application avec des données fictives. La scène représente un workflow configurable ; elle ne reproduit pas les dimensions physiques d’un établissement._
 
@@ -14,7 +14,7 @@ _Capture de l’application avec des données fictives. La scène représente un
 
 ## Le problème abordé
 
-Une intervention mobilise plusieurs personnes et dépend souvent d’un accord client, d’une pièce ou d’une disponibilité. CaRM rassemble ces informations autour du véhicule : **où en est-il, qui intervient et quelle est la prochaine action ?**
+Une intervention mobilise plusieurs personnes et dépend souvent d’un accord client, d’une pièce ou d’une disponibilité. Caragem rassemble ces informations autour du véhicule : **où en est-il, qui intervient et quelle est la prochaine action ?**
 
 Le garage miniature sert de point d’entrée aux dossiers. Les vues de gestion et l’espace « Mon travail » permettent ensuite de traiter les opérations détaillées, notamment sur téléphone.
 
@@ -84,15 +84,17 @@ Pour une lecture technique, commencer par [`domain.ts`](src/lib/domain.ts), [`st
 **Prérequis : Node.js 24+, npm et une base PostgreSQL accessible.** Neon peut être utilisé comme PostgreSQL hébergé.
 
 ```sh
-git clone https://github.com/SebastienBotty/carm.git
-cd carm
+git clone URL_DU_DEPOT caragem
+cd caragem
 npm ci
 ```
+
+Remplacer `URL_DU_DEPOT` par l’URL de clonage affichée sur le dépôt Git.
 
 Copier [`.env.example`](.env.example) vers `.env`, puis renseigner au minimum :
 
 ```dotenv
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/carm
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/caragem
 APP_ORIGIN=http://localhost:3000
 ```
 
@@ -139,7 +141,7 @@ Après le build, utiliser `npm start`. Le déploiement nécessite **un processus
 
 ## État du projet et limites
 
-CaRM est une application fonctionnelle en développement. Les principaux points à traiter avant une exploitation commerciale sont identifiés :
+Caragem est une application fonctionnelle en développement. Les principaux points à traiter avant une exploitation commerciale sont identifiés :
 
 - **Documents financiers** : les devis et factures sont des documents de travail ; la conformité de facturation France/Belgique reste à compléter.
 - **Intégrations réelles** : les parcours Google, SMTP et Stripe doivent être validés avec la configuration du déploiement, en particulier avant tout paiement réel.

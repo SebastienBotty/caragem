@@ -129,7 +129,7 @@ test('client vehicle links and new visits persist in PostgreSQL and concurrent d
     state.demo = true;
     await store.save(state);
     const session = (await store.session(
-      `carm_session=${await store.newSession(state.id, state.users[0].id)}`,
+      `caragem_session=${await store.newSession(state.id, state.users[0].id)}`,
     ))!;
     const results = await Promise.allSettled([
       store.act(session, arrival(state.customers[0].id)),

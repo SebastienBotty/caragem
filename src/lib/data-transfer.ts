@@ -537,7 +537,7 @@ export function prepareCsvImport(
       throw new UserError(`Associez la colonne « ${label} ».`);
   if (new Set(Object.values(mapping)).size !== Object.values(mapping).length)
     throw new UserError(
-      'Une même colonne du fichier ne peut pas être associée à plusieurs champs CaRM.',
+      'Une même colonne du fichier ne peut pas être associée à plusieurs champs Caragem.',
     );
   const state = structuredClone(current);
   delete state.savedVehicles;

@@ -234,7 +234,7 @@ export function createBillingApi(store: Store, io: Server, configuration = billi
         if (!row.stripe_customer) {
           const customer = await stripe.customers.create(
             { email: session.email, metadata: { garageId: state.id } },
-            { idempotencyKey: `carm-customer-${state.id}` },
+            { idempotencyKey: `caragem-customer-${state.id}` },
           );
           row.stripe_customer = customer.id;
           await sql.query('UPDATE garage_billing SET stripe_customer=$2 WHERE garage_id=$1', [
@@ -250,7 +250,7 @@ export function createBillingApi(store: Store, io: Server, configuration = billi
             mode: 'subscription',
             customer: row.stripe_customer,
             client_reference_id: state.id,
-            integration_identifier: 'carm_garage_qmwkzpta',
+            integration_identifier: 'caragem_garage_qmwkzpta',
             line_items: [{ price, quantity: 1 }],
             automatic_tax: { enabled: true },
             billing_address_collection: 'required',
@@ -270,7 +270,7 @@ export function createBillingApi(store: Store, io: Server, configuration = billi
             success_url: `${appOrigin()}/?billing=success`,
             cancel_url: `${appOrigin()}/?billing=cancel`,
           },
-          { idempotencyKey: `carm-checkout-${state.id}-${attempt}` },
+          { idempotencyKey: `caragem-checkout-${state.id}-${attempt}` },
         );
         if (!checkout.url) throw new UserError('Lien de paiement Stripe indisponible.');
         await sql.query(

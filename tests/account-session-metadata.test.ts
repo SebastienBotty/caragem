@@ -23,7 +23,7 @@ test('account metadata defaults migrate safely and session activity preserves au
       'Test Browser',
       authenticated,
     );
-    const session = await store.session(`carm_session=${token}`);
+    const session = await store.session(`caragem_session=${token}`);
     assert.equal(session!.authenticatedAt, authenticated);
     assert.equal(session!.twoFactorVerified, false);
     const { rows } = await store.db.query(
@@ -36,7 +36,7 @@ test('account metadata defaults migrate safely and session activity preserves au
     await store.db.query('UPDATE sessions SET last_seen=0 WHERE token_hash=$1', [
       session!.tokenHash,
     ]);
-    await store.session(`carm_session=${token}`);
+    await store.session(`caragem_session=${token}`);
     const activity = (
       await store.db.query(
         'SELECT last_seen::float8 AS seen,authenticated_at::float8 AS authenticated FROM sessions WHERE token_hash=$1',

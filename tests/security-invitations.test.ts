@@ -9,10 +9,10 @@ test('delegated invitations cannot grant more rights, including after role chang
     const state = await store.create(true);
     const [owner, mechanic] = state.users;
     const ownerSession = (await store.session(
-      `carm_session=${await store.newSession(state.id, owner.id)}`,
+      `caragem_session=${await store.newSession(state.id, owner.id)}`,
     ))!;
     const memberSession = (await store.session(
-      `carm_session=${await store.newSession(state.id, mechanic.id)}`,
+      `caragem_session=${await store.newSession(state.id, mechanic.id)}`,
     ))!;
     await store.act(ownerSession, {
       type: 'userPermissions',

@@ -146,7 +146,7 @@ test(
     const sessionCookie = (res: Response) =>
       res.headers
         .getSetCookie()
-        .find((c) => c.startsWith('carm_session='))!
+        .find((c) => c.startsWith('caragem_session='))!
         .split(';')[0];
     const sessionData = async (res: Response) =>
       (await (
@@ -154,7 +154,7 @@ test(
       ).json()) as SessionData;
     try {
       const initial = await start();
-      const wrongBrowser = await callback(initial, {}, 'carm_google=' + 'a'.repeat(64));
+      const wrongBrowser = await callback(initial, {}, 'caragem_google=' + 'a'.repeat(64));
       assert.match(wrongBrowser.headers.get('location')!, /google_invalid_request/);
       assert.equal(tokenExchanges, 0);
       const first = await callback(initial);
@@ -199,10 +199,10 @@ test(
         hash,
         garage: 'Existing Garage',
       });
-      const localCookie = `carm_session=${await store.newSession(local.garageId, local.userId)}`;
+      const localCookie = `caragem_session=${await store.newSession(local.garageId, local.userId)}`;
       const localSession = (await store.session(localCookie))!;
       const secondGarage = await store.createGarage(localSession, 'Second Garage');
-      const secondCookie = `carm_session=${await store.newSession(secondGarage.garageId, secondGarage.userId)}`;
+      const secondCookie = `caragem_session=${await store.newSession(secondGarage.garageId, secondGarage.userId)}`;
       const collision = await callback(await start(), {
         sub: 'existing-google',
         email: 'existing@gmail.com',
@@ -291,13 +291,13 @@ test(
       });
       assert.equal(protectedLogin.headers.get('location'), '/?two_factor=required');
       assert.equal(
-        protectedLogin.headers.getSetCookie().some((c) => c.startsWith('carm_session=')),
+        protectedLogin.headers.getSetCookie().some((c) => c.startsWith('caragem_session=')),
         false,
         'Google cannot create a complete session before MFA',
       );
       const challenge = protectedLogin.headers
         .getSetCookie()
-        .find((c) => c.startsWith('carm_2fa='))!
+        .find((c) => c.startsWith('caragem_2fa='))!
         .split(';')[0];
       const mfaVerified = await post('auth/2fa/verify', { code: recovery }, challenge);
       assert.equal(mfaVerified.status, 200, await mfaVerified.clone().text());
@@ -319,7 +319,7 @@ test(
       assert.ok(await store.invitation(orphanInvitation, 'new@gmail.com'));
       const orphanChallenge = orphanLogin.headers
         .getSetCookie()
-        .find((c) => c.startsWith('carm_2fa='))!
+        .find((c) => c.startsWith('caragem_2fa='))!
         .split(';')[0];
       assert.equal(
         (await post('auth/2fa/verify', { code: orphanRecovery }, orphanChallenge)).status,

@@ -28,9 +28,9 @@ test('Stripe checkout, signed lifecycle events and reactivation are isolated per
     const form = new URLSearchParams(Buffer.concat(chunks).toString());
     const path = req.url!.split('?')[0];
     let result: unknown;
-    if (path === '/v1/prices/price_carm')
+    if (path === '/v1/prices/price_caragem')
       result = {
-        id: 'price_carm',
+        id: 'price_caragem',
         active: true,
         currency: 'eur',
         unit_amount: validPrice ? 2500 : 2000,
@@ -83,7 +83,7 @@ test('Stripe checkout, signed lifecycle events and reactivation are isolated per
   const io = createRealtime(server, store);
   api = createApi(store, io, undefined, {
     stripe,
-    price: 'price_carm',
+    price: 'price_caragem',
     webhookSecret: secret,
     taxEnabled: true,
   });
@@ -136,8 +136,8 @@ test('Stripe checkout, signed lifecycle events and reactivation are isolated per
       name: 'Autre',
       garage: 'Garage étranger',
     });
-    const cookie = `carm_session=${await store.newSession(owner.garageId, owner.userId)}`;
-    const workerCookie = `carm_session=${await store.newSession(worker.garageId, worker.userId)}`;
+    const cookie = `caragem_session=${await store.newSession(owner.garageId, owner.userId)}`;
+    const workerCookie = `caragem_session=${await store.newSession(worker.garageId, worker.userId)}`;
     assert.equal((await post('billing/checkout', workerCookie)).status, 403);
     assert.equal((await post('billing/checkout', '')).status, 401);
     validPrice = false;
@@ -179,7 +179,7 @@ test('Stripe checkout, signed lifecycle events and reactivation are isolated per
       items: {
         data: [
           {
-            price: { id: 'price_carm' },
+            price: { id: 'price_caragem' },
             quantity: 1,
             current_period_end: Math.floor(Date.now() / 1000) + 2592000,
           },
@@ -264,7 +264,7 @@ test('Stripe checkout, signed lifecycle events and reactivation are isolated per
     assert.equal((await post('billing/checkout', cookie)).status, 200);
     assert.equal(checkoutInputs.length, 2, 'an existing subscription opens the portal');
     // The last 48h use a free stub instead of restarting or extending the trial.
-    const otherCookie = `carm_session=${await store.newSession(other.garageId, other.userId)}`;
+    const otherCookie = `caragem_session=${await store.newSession(other.garageId, other.userId)}`;
     const soon = Date.now() + 3600000;
     await store.db.query('UPDATE garage_billing SET trial_ends_at=$2 WHERE garage_id=$1', [
       other.garageId,

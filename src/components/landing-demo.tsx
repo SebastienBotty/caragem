@@ -125,7 +125,7 @@ export default function LandingDemo() {
         refresh: async () => {},
       }}
     >
-      <section className="landing-story" id="histoire" aria-label="Une intervention dans CaRM">
+      <section className="landing-story" id="histoire" aria-label="Une intervention dans Caragem">
         <div className="landing-stage">
           <div className="landing-stage-bar">
             <span>

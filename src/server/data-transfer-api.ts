@@ -66,7 +66,7 @@ export async function dataTransferApi(
     const csv = input.example
       ? exampleDataCsv(input.kind)
       : exportDataCsv(current, input.kind, input.template);
-    const filename = `carm-${input.kind}${input.example ? '-exemple' : input.template ? '-modele' : ''}.${input.format}`;
+    const filename = `caragem-${input.kind}${input.example ? '-exemple' : input.template ? '-modele' : ''}.${input.format}`;
     send(
       200,
       input.format === 'csv'
