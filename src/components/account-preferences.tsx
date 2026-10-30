@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { normalizeAccountPreferences } from '@/lib/account-preferences';
+import { normalizeAccountPreferences, type AccountPreferences } from '@/lib/account-preferences';
 import { useGarage } from './provider';
 import { Field, Form } from './ui';
 
@@ -26,26 +26,12 @@ export function AccountPreferencesPanel() {
         label="Enregistrer mes préférences"
         onSubmit={async () => {
           if (training) return;
-          await request('account/preferences', preferences);
+          const latest = await request<{ preferences: AccountPreferences }>('account/preferences');
+          await request('account/preferences', { ...preferences, theme: latest.preferences.theme });
           await refresh();
           notify('Préférences enregistrées.');
         }}
       >
-        <Field
-          label="Thème de l’interface"
-          hint="Ce choix est personnel et vous suit dans tous vos garages après enregistrement."
-        >
-          <select
-            value={preferences.theme}
-            onChange={(e) =>
-              setPreferences({ ...preferences, theme: e.target.value as typeof preferences.theme })
-            }
-          >
-            <option value="light">Clair</option>
-            <option value="dark">Sombre</option>
-            <option value="system">Selon mon appareil</option>
-          </select>
-        </Field>
         <Field
           label="Écran à ouvrir à la connexion"
           hint="Si cet écran est inaccessible dans un garage, un écran autorisé sera ouvert."

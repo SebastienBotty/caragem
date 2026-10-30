@@ -1,6 +1,6 @@
 # Préférences personnelles et notifications
 
-Le thème est personnel : clair (par défaut pour les comptes existants), sombre ou selon l’appareil. Il est sauvegardé dans les préférences du compte et appliqué à tous ses garages, fenêtres de formulaire et visites guidées. Le mode appareil suit les changements du système tant que la session est ouverte. La scène 3D conserve ses matériaux et les couleurs des véhicules. Le thème est réinitialisé à la déconnexion pour ne pas imposer le choix d’une personne à la suivante sur un appareil partagé.
+Le thème est personnel : l’interrupteur soleil/lune de la barre du haut permet de passer du clair au sombre, avec enregistrement immédiat sur le compte. Il remplace le sélecteur de Mon compte et s’applique à tous les garages, fenêtres de formulaire et visites guidées. Les comptes ayant auparavant choisi le mode appareil continuent à suivre le système jusqu’à leur première utilisation de l’interrupteur. La scène 3D conserve ses matériaux et les couleurs des véhicules. Le thème est réinitialisé à la déconnexion pour ne pas imposer le choix d’une personne à la suivante sur un appareil partagé.
 
 Les préférences sont enregistrées sur le compte, indépendamment du garage et de son abonnement : écran d’accueil, garage par défaut, qualité 3D, réduction des animations et catégories de notifications. Un garage par défaut doit appartenir aux garages accessibles au compte. Le choix d’écran ne donne aucune permission supplémentaire ; l’interface revient vers un écran autorisé si les permissions changent.
 

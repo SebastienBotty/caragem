@@ -20,17 +20,17 @@ Le garage miniature sert de point d’entrée aux dossiers. Les vues de gestion 
 
 ## Fonctionnalités
 
-| Domaine                         | Fonctionnement                                                                                                                                              |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Atelier 3D**                  | Modules configurables, zoom par zone, véhicules reconnaissables par marque et couleur, déplacements entre les étapes et mécaniciens identifiés.             |
-| **Interventions**               | Plusieurs intervenants par dossier, tâches, temps prévu et temps saisi, blocages structurés avec responsable, échéance et prochaine action.                 |
-| **Clients et véhicules**        | Plusieurs véhicules par client, visites successives, historique, notes et photos privées avec constats convertibles en tâches.                              |
-| **Planning et stock**           | Rendez-vous, arrivées, réservations et consommation de pièces, commandes fournisseurs et réceptions partielles.                                             |
-| **Documents**                   | Devis, accord client enregistré, conversion en facture, remises, suivi des paiements et génération de PDF. Mails préparés puis validés manuellement.        |
-| **Équipe et accès**             | Comptes multi-garages, invitations, rôles personnalisés et exceptions de permissions individuelles.                                                         |
-| **Compte personnel**            | Connexion Google ou mot de passe, double authentification, gestion des sessions, changement d’adresse vérifié, notifications et thème clair/sombre/système. |
-| **Abonnements**                 | 14 jours offerts sur le premier garage uniquement. 25 € TTC/mois par garage ; abonnement immédiat pour les garages supplémentaires.                         |
-| **Prise en main et transferts** | Visites guidées avec scénarios fictifs isolés ; import/export CSV et Excel avec aperçu, validation et confirmation.                                         |
+| Domaine                         | Fonctionnement                                                                                                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Atelier 3D**                  | Modules configurables, zoom par zone, véhicules reconnaissables par marque et couleur, déplacements entre les étapes et mécaniciens identifiés.      |
+| **Interventions**               | Plusieurs intervenants par dossier, tâches, temps prévu et temps saisi, blocages structurés avec responsable, échéance et prochaine action.          |
+| **Clients et véhicules**        | Plusieurs véhicules par client, visites successives, historique, notes et photos privées avec constats convertibles en tâches.                       |
+| **Planning et stock**           | Rendez-vous, arrivées, réservations et consommation de pièces, commandes fournisseurs et réceptions partielles.                                      |
+| **Documents**                   | Devis, accord client enregistré, conversion en facture, remises, suivi des paiements et génération de PDF. Mails préparés puis validés manuellement. |
+| **Équipe et accès**             | Comptes multi-garages, invitations, rôles personnalisés et exceptions de permissions individuelles.                                                  |
+| **Compte personnel**            | Connexion Google ou mot de passe, double authentification, gestion des sessions, changement d’adresse vérifié, notifications et thème clair/sombre.  |
+| **Abonnements**                 | 14 jours offerts sur le premier garage uniquement. 25 € TTC/mois par garage ; abonnement immédiat pour les garages supplémentaires.                  |
+| **Prise en main et transferts** | Visites guidées avec scénarios fictifs isolés ; import/export CSV et Excel avec aperçu, validation et confirmation.                                  |
 
 ## Architecture et choix techniques
 
