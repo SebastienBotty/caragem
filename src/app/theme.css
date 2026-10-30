@@ -1,0 +1,239 @@
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #101722;
+  --surface: #182230;
+  --ink: #e5edf8;
+  --muted: #a4b2c6;
+  --line: #2b3a4e;
+  --blue: #94b1ff;
+  --blue-light: #233654;
+  --green: #71d1b3;
+  --amber: #e7bc78;
+  --surface-raised: #1e2c3e;
+  --surface-hover: #24344a;
+}
+
+:root[data-theme='dark'] :where(.app-shell, dialog, .auth-page, .account-gate) :where(*) {
+  border-color: var(--line);
+}
+
+:root[data-theme='dark']
+  :is(
+    .sidebar,
+    .profile-menu,
+    .stat-card,
+    .garage-panel,
+    .zone-summary,
+    .scene-fallback button,
+    .vehicle-mini-card,
+    .training-coach,
+    .data-panel,
+    .vehicle-drawer,
+    .drawer-footer,
+    .task-card,
+    .customer-card,
+    .planning-grid,
+    .inventory-stats > div,
+    .team-card,
+    .garage-access-list > button,
+    .google-button.button,
+    .auth-page,
+    input,
+    select,
+    textarea
+  ) {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+:root[data-theme='dark'] .modal {
+  background: var(--surface);
+  box-shadow: 0 25px 90px #0008;
+}
+:root[data-theme='dark'] .modal::backdrop,
+:root[data-theme='dark'] .vehicle-drawer::backdrop {
+  background: #020711a6;
+}
+:root[data-theme='dark'] .topbar {
+  background: #182230ed;
+}
+:root[data-theme='dark'] .global-search {
+  background: var(--bg);
+}
+:root[data-theme='dark']
+  :is(
+    .connection-card,
+    .page-eyebrow > span,
+    .segmented,
+    .segmented b,
+    .activity-tip,
+    .work-time-summary,
+    .data-table th,
+    .plate,
+    .drawer-client,
+    .drawer-tabs > button > span,
+    .task-column,
+    .planning-day > header,
+    .appointment,
+    .invite-result,
+    .document-preview th,
+    .account-gate
+  ) {
+  background: var(--bg);
+}
+:root[data-theme='dark']
+  :is(
+    .garage-avatar,
+    .nav-item.active,
+    .nav-item.active .nav-count,
+    .zone-summary > button.selected,
+    .activity-event-icon,
+    .empty-icon,
+    .settings-icon,
+    .document-icon,
+    .planning-day.today header,
+    .training-permission-target
+  ) {
+  background: var(--blue-light);
+  color: var(--blue);
+}
+:root[data-theme='dark'] :is(.nav-count, .progress-track, .zone-meter) {
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+:root[data-theme='dark'] .button {
+  background: var(--surface-raised);
+  color: var(--ink);
+  border-color: var(--line);
+}
+:root[data-theme='dark']
+  :is(
+    .button:hover:not(:disabled),
+    .icon-button:hover,
+    .nav-item:hover,
+    .profile-menu > button:hover,
+    .data-table tbody tr:hover,
+    .mail-row:hover,
+    .stepper button:hover,
+    .add-dashed:hover,
+    .google-button.button:hover:not(:disabled)
+  ) {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+:root[data-theme='dark'] .segmented > button.active {
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+:root[data-theme='dark'] :is(.button.primary, .brand-mark) {
+  background: #4569dc;
+  border-color: #6f91fa;
+  color: #fff;
+}
+:root[data-theme='dark'] .button.primary:hover:not(:disabled) {
+  background: #3658c8;
+  color: #fff;
+}
+:root[data-theme='dark'] :is(input, textarea)::placeholder {
+  color: #95a4b9;
+}
+:root[data-theme='dark'] :is(input, select, textarea):focus {
+  border-color: #94b1ff;
+  box-shadow: 0 0 0 3px #94b1ff26;
+}
+:root[data-theme='dark']
+  :is(
+    .nav-item,
+    .nav-item svg,
+    .data-table td,
+    .tour-card p,
+    .training-coach p,
+    .garage-access-list small,
+    .pending-invitation small,
+    .field > span,
+    .field > small
+  ) {
+  color: var(--muted);
+}
+:root[data-theme='dark']
+  :is(
+    .nav-item.active,
+    .nav-item.active svg,
+    .data-table td strong,
+    .task-title > strong,
+    .plate,
+    .drawer-client strong,
+    .training-permission-target strong
+  ) {
+  color: var(--ink);
+}
+:root[data-theme='dark'] .task-vehicle {
+  color: var(--blue);
+}
+
+:root[data-theme='dark'] .badge {
+  background: var(--surface-raised);
+  color: #c4cfdf;
+}
+:root[data-theme='dark'] :is(.badge.blue, .task-status.doing) {
+  background: #21395c;
+  color: #a8c5ff;
+}
+:root[data-theme='dark'] :is(.badge.green, .task-status.done, .event-1, .return-event) {
+  background: #183c34;
+  color: #8ee0bc;
+}
+:root[data-theme='dark']
+  :is(.badge.amber, .badge.orange, .notice, .drawer-blocker, .blocker-detail, .event-2) {
+  background: #3c3020;
+  color: #f1cb8c;
+}
+:root[data-theme='dark'] :is(.badge.red, .form-error) {
+  background: #492b33;
+  color: #ffb7b7;
+}
+:root[data-theme='dark'] .blocker-detail :is(strong, small),
+:root[data-theme='dark'] .drawer-blocker :is(strong, small) {
+  color: inherit;
+}
+
+:root[data-theme='dark']
+  :is(.scene-controls, .zone-label, .car-plate, .car-label > small, .mechanic-name) {
+  background: #182230ed;
+  color: var(--ink);
+}
+:root[data-theme='dark'] :is(.zone-label > b, .scene-controls > span) {
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+:root[data-theme='dark'] .scene-controls > button:hover {
+  background: var(--blue-light);
+}
+:root[data-theme='dark'] .mechanic-name:after {
+  background: var(--surface);
+  border-color: var(--line);
+}
+:root[data-theme='dark'] :is(.garage-canvas, .scene-loading) {
+  background: var(--bg);
+}
+:root[data-theme='dark'] .billing-notice {
+  background: #213654;
+  border-color: #415f8f;
+  color: #d0e0ff;
+}
+:root[data-theme='dark'] .billing-notice.readonly {
+  background: #3c3020;
+  border-color: #745b34;
+  color: #f1cb8c;
+}
+:root[data-theme='dark'] .auth-story {
+  background: #152338;
+}
+:root[data-theme='dark'] .toast {
+  background: #263c59;
+  color: var(--ink);
+}

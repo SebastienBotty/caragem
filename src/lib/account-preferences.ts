@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const accountPreferencesSchema = z
   .object({
+    theme: z.enum(['light', 'dark', 'system']).default('light'),
     initialPage: z.enum(['garage', 'tasks', 'planning']),
     defaultGarageId: z.string().min(1).max(100).optional(),
     graphicsQuality: z.enum(['auto', 'low', 'high']),
@@ -19,6 +20,7 @@ export const accountPreferencesSchema = z
 
 export type AccountPreferences = z.infer<typeof accountPreferencesSchema>;
 export const defaultAccountPreferences: AccountPreferences = {
+  theme: 'light',
   initialPage: 'garage',
   graphicsQuality: 'auto',
   reducedMotion: false,
@@ -36,6 +38,7 @@ export function normalizeAccountPreferences(value: unknown): AccountPreferences 
     return result.success ? result.data : defaultValue;
   };
   return {
+    theme: fallback(accountPreferencesSchema.shape.theme, raw.theme, 'light'),
     initialPage: fallback(accountPreferencesSchema.shape.initialPage, raw.initialPage, 'garage'),
     defaultGarageId: fallback(
       accountPreferencesSchema.shape.defaultGarageId,

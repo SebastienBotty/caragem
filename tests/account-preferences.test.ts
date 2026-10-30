@@ -24,11 +24,18 @@ test('account preferences normalize old data without losing valid choices and re
     initialPage: 'tasks',
     graphicsQuality: 'ultra',
     reducedMotion: true,
+    theme: 'dark',
     notifications: { assignments: false, blockages: 'yes' },
   });
   assert.equal(normalized.initialPage, 'tasks');
   assert.equal(normalized.graphicsQuality, 'auto');
   assert.equal(normalized.reducedMotion, true);
+  assert.equal(normalized.theme, 'dark');
+  assert.equal(normalizeAccountPreferences({ theme: 'invalid' }).theme, 'light');
+  assert.equal(
+    accountPreferencesSchema.safeParse({ ...defaultAccountPreferences, theme: 'invalid' }).success,
+    false,
+  );
   assert.equal(normalized.notifications.assignments, false);
   assert.equal(normalized.notifications.blockages, true);
   assert.equal(
@@ -167,6 +174,7 @@ test('personal settings persist outside garage writes and notifications honor ac
     );
     const prefs: AccountPreferences = {
       ...defaultAccountPreferences,
+      theme: 'dark',
       initialPage: 'tasks',
       graphicsQuality: 'low',
       reducedMotion: true,
@@ -184,6 +192,11 @@ test('personal settings persist outside garage writes and notifications honor ac
       prefs,
     );
     assert.deepEqual(broadcasts, [`account:${session.email}`]);
+    assert.equal(
+      (await call<{ preferences: AccountPreferences }>(workerSession, '/api/account/preferences'))
+        .data.preferences.theme,
+      'light',
+    );
     const ownerItems = (
       await call<{ notifications: AccountNotification[] }>(session, '/api/account/notifications')
     ).data.notifications;

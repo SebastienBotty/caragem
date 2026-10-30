@@ -32,6 +32,21 @@ export function AccountPreferencesPanel() {
         }}
       >
         <Field
+          label="Thème de l’interface"
+          hint="Ce choix est personnel et vous suit dans tous vos garages après enregistrement."
+        >
+          <select
+            value={preferences.theme}
+            onChange={(e) =>
+              setPreferences({ ...preferences, theme: e.target.value as typeof preferences.theme })
+            }
+          >
+            <option value="light">Clair</option>
+            <option value="dark">Sombre</option>
+            <option value="system">Selon mon appareil</option>
+          </select>
+        </Field>
+        <Field
           label="Écran à ouvrir à la connexion"
           hint="Si cet écran est inaccessible dans un garage, un écran autorisé sera ouvert."
         >
