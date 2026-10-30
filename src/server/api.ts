@@ -14,8 +14,14 @@ import { requirePermission, visibleState } from '../lib/permissions.ts';
 import { broadcastGarage } from './realtime.ts';
 import { dataTransferApi } from './data-transfer-api.ts';
 import { vehiclePhotoApi } from './vehicle-photo-api.ts';
+import { createBillingApi, type BillingConfig } from './billing-api.ts';
 const knownRoutes = new Set([
   '/api/session',
+  '/api/billing',
+  '/api/billing/checkout',
+  '/api/billing/portal',
+  '/api/billing/sync',
+  '/api/billing/webhook',
   '/api/invitation',
   '/api/demo',
   '/api/login',
@@ -57,8 +63,14 @@ async function body(req: IncomingMessage, maxBytes = 128000) {
     throw new UserError('Requête JSON invalide.');
   }
 }
-export function createApi(store: Store, io: Server, googleConfig = googleConfiguration) {
+export function createApi(
+  store: Store,
+  io: Server,
+  googleConfig = googleConfiguration,
+  billingConfig?: BillingConfig,
+) {
   const google = createGoogleApi(store, io, googleConfig);
+  const billing = createBillingApi(store, io, billingConfig);
   const broadcast = async (garageId: string) => broadcastGarage(io, await store.get(garageId));
   return async function api(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
     const path = req.url?.split('?')[0] ?? '';
@@ -96,6 +108,10 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       res.end(JSON.stringify(data));
     };
     try {
+      if (path === '/api/billing/webhook' && req.method === 'POST') {
+        await billing.webhook(req, res, send);
+        return true;
+      }
       if (req.method !== 'GET' && !validOrigin(req.headers.origin)) {
         send(403, { error: 'Origine de requête refusée.' });
         return true;
@@ -127,6 +143,7 @@ export function createApi(store: Store, io: Server, googleConfig = googleConfigu
       const userId = session.userId;
       const actor = s.users.find((u) => u.id === userId);
       if (!actor) throw new UserError('Session invalide.');
+      if (await billing.handle(req, path, session, send)) return true;
       if (await vehiclePhotoApi(store, io, req.method, path, inputBody, session, res)) return true;
       if (await dataTransferApi(store, io, req, res, path, inputBody, session, s, send))
         return true;

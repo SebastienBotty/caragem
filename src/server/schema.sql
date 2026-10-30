@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS garage_billing (
   checkout_id TEXT,
   checkout_expires BIGINT
 );
+ALTER TABLE garage_billing ADD COLUMN IF NOT EXISTS checkout_attempt INTEGER NOT NULL DEFAULT 0;
 INSERT INTO garage_billing(garage_id) SELECT id FROM garages WHERE state->>'demo'='false' ON CONFLICT DO NOTHING;
 CREATE TABLE IF NOT EXISTS accounts (email TEXT PRIMARY KEY, hash TEXT NOT NULL, name TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 ALTER TABLE garages ADD COLUMN IF NOT EXISTS demo_account_email TEXT REFERENCES accounts(email);
