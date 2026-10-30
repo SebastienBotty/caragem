@@ -24,18 +24,51 @@ export function CustomerForm({
           close();
         }}
       >
-        <Field label="Nom ou raison sociale">
-          <input name="name" required maxLength={200} placeholder="Sophie Dubois" />
-        </Field>
-        <div className="form-grid">
-          <Field label="Adresse mail">
-            <input name="email" type="email" required placeholder="sophie@example.fr" />
-          </Field>
-          <Field label="Téléphone">
-            <input name="phone" type="tel" maxLength={40} placeholder="06 12 34 56 78" />
-          </Field>
-        </div>
+        <CustomerFields />
       </Form>
     </Modal>
+  );
+}
+
+export function CustomerFields({
+  values,
+}: {
+  values?: { name: string; email: string; phone: string };
+}) {
+  return (
+    <>
+      <Field label="Nom ou raison sociale">
+        <input
+          name="name"
+          required
+          maxLength={200}
+          placeholder="Sophie Dubois"
+          value={values?.name}
+          readOnly={!!values}
+        />
+      </Field>
+      <div className="form-grid">
+        <Field label="Adresse mail">
+          <input
+            name="email"
+            type="email"
+            required
+            placeholder="sophie@example.fr"
+            value={values?.email}
+            readOnly={!!values}
+          />
+        </Field>
+        <Field label="Téléphone">
+          <input
+            name="phone"
+            type="tel"
+            maxLength={40}
+            placeholder="06 12 34 56 78"
+            value={values?.phone}
+            readOnly={!!values}
+          />
+        </Field>
+      </div>
+    </>
   );
 }
